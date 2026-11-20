@@ -34,13 +34,7 @@ outside the shell's JS UI and theme.
 Touched files: `js/ui/{notch,panel,sessionMode,layout,overview,overviewControls,appDisplay,iconGrid,workspacesView}.js`,
 `js/js-resources.gresource.xml`, and `data/theme/gnome-shell-sass/widgets/{_panel,_app-grid,_overview}.scss`.
 
-**Windows** (`js/ui/snapAssist.js`, `js/ui/windowAttentionHandler.js`)
-- Snap assist: after a window is snapped to a half (mutter's edge tiling) or a
-  quarter, the free area is offered to the other windows on that monitor as a
-  picker of live thumbnails. Picking one places it; for quarters the remaining
-  quadrants are offered in turn. Esc or a click outside stops it.
-- Corner snapping: dragging a window into a screen corner previews and snaps it
-  to that quarter (mutter only does halves natively).
+**Windows** (`js/ui/windowAttentionHandler.js`)
 - Windows that ask for attention are raised instead of showing a "window is
   ready" notification, unless you were typing in the last ~1.2 s, in which case
   the notification is shown so focus is never stolen mid-keystroke.
@@ -59,7 +53,6 @@ broken build never leaves you without a desktop.
 
 ## Status
 
-Tested in headless sessions (one and two virtual monitors); snap placement and
-the picker were driven by script, not with a real mouse drag. Real-hardware
+Tested in headless sessions (one and two virtual monitors). Real-hardware
 dual-monitor behavior, real Spotify cover colors and multi-page app lists have
 had little testing. Expect rough edges.
