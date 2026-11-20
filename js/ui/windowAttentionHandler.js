@@ -1,11 +1,24 @@
 import GObject from 'gi://GObject';
+import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 
 import * as Main from './main.js';
 import * as MessageTray from './messageTray.js';
 
+// Windows that ask for attention are brought to the front right away, unless
+// the user was typing a moment ago (then a notification is shown instead, so
+// a window never grabs focus out from under the keyboard)
+const TYPING_GRACE_MS = 1200;
+
 export class WindowAttentionHandler {
     constructor() {
+        this._lastKeyTime = 0;
+        global.stage.connectObject('captured-event', (_actor, event) => {
+            if (event.type() === Clutter.EventType.KEY_PRESS)
+                this._lastKeyTime = GLib.get_monotonic_time() / 1000;
+            return Clutter.EVENT_PROPAGATE;
+        }, this);
         this._tracker = Shell.WindowTracker.get_default();
         global.display.connectObject(
             'window-demands-attention', this._onWindowDemandsAttention.bind(this),
@@ -30,6 +43,13 @@ export class WindowAttentionHandler {
 
         if (!window || window.has_focus() || window.is_skip_taskbar())
             return;
+
+        const typing =
+            GLib.get_monotonic_time() / 1000 - this._lastKeyTime < TYPING_GRACE_MS;
+        if (!typing) {
+            Main.activateWindow(window);
+            return;
+        }
 
         const app = this._tracker.get_window_app(window);
         const source = new WindowAttentionSource(app, window);
