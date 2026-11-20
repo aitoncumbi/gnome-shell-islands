@@ -1,0 +1,6 @@
+_build/
+*.orig
+*.rej
+__pycache__/
+subprojects/gvc/
+subprojects/libshew/

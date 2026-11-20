@@ -1,0 +1,10 @@
+/* OVERVIEW */
+
+.secondary-monitor-workspaces {
+  spacing: $base_padding * 2;
+}
+
+#overviewGroup {
+  // Translucent, not blurred: the wallpaper shows through the dark tint
+  background-color: transparentize($system_base_color, 0.28);
+}
