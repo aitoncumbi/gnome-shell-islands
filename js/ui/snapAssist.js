@@ -308,7 +308,12 @@ export class SnapAssist {
         for (const win of windows.slice(0, 12))
             flow.add_child(this._makeCard(win, () => finish(win)));
 
-        backdrop.connect('button-press-event', () => {
+        // Only a press on the empty backdrop dismisses. Presses on a card
+        // bubble up to here too and must not cancel before the click lands.
+        backdrop.connect('button-press-event', (_a, event) => {
+            const src = event.get_source();
+            if (src !== backdrop && panel.contains(src))
+                return Clutter.EVENT_PROPAGATE;
             finish(null);
             return Clutter.EVENT_STOP;
         });
