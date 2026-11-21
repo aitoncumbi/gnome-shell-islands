@@ -9,8 +9,10 @@ outside the shell's JS UI and theme.
 ## What changed
 
 **Top bar**
-- Two floating "islands" instead of a full-width bar: the clock on the left, the
-  status area (quick settings) on the right. The bar itself is transparent.
+- One floating status island on the right instead of a full-width bar:
+  status icons and battery, then the clock (click for the calendar), then a bell
+  button that opens the notification list in its own popup (the bell is tinted
+  when something is unread; Super+V opens it). The bar itself is transparent.
 - Islands use GNOME's usual gray, slightly translucent, 32px tall in a 40px bar.
 - A chevron hides the status island (and the bar stops reserving screen space);
   a small tab brings it back.

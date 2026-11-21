@@ -32,7 +32,7 @@ import * as ThunderboltStatus from './status/thunderbolt.js';
 import * as AutoRotateStatus from './status/autoRotate.js';
 import * as BackgroundAppsStatus from './status/backgroundApps.js';
 
-import {DateMenuButton} from './dateMenu.js';
+import {DateMenuButton, NotificationsButton} from './dateMenu.js';
 import {ATIndicator} from './status/accessibility.js';
 import {InputSourceIndicator} from './status/keyboard.js';
 import {DwellClickIndicator} from './status/dwellClick.js';
@@ -436,6 +436,7 @@ const PANEL_ITEM_IMPLEMENTATIONS = {
     'activities': ActivitiesButton,
     'quickSettings': QuickSettings,
     'dateMenu': DateMenuButton,
+    'notifications': NotificationsButton,
     'a11y': ATIndicator,
     'keyboard': InputSourceIndicator,
     'dwellClick': DwellClickIndicator,
@@ -779,8 +780,13 @@ export class Panel extends St.Widget {
         this._toggleMenu(this.statusArea.quickSettings);
     }
 
+    toggleNotifications() {
+        this._toggleMenu(this.statusArea.notifications);
+    }
+
     closeCalendar() {
         this._closeMenu(this.statusArea.dateMenu);
+        this._closeMenu(this.statusArea.notifications);
     }
 
     closeQuickSettings() {
@@ -808,6 +814,8 @@ export class Panel extends St.Widget {
         this._updateBox(panel.left, this._leftBox);
         this._updateBox(panel.center, this._centerBox);
         this._updateBox(panel.right, this._rightBox);
+        // an empty start island would leave an empty pill behind
+        this._leftBox.visible = panel.left.length > 0;
 
         if (panel.left.includes('dateMenu'))
             Main.messageTray.bannerAlignment = Clutter.ActorAlign.START;

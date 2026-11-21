@@ -839,7 +839,7 @@ class CalendarMessageList extends St.Widget {
 
         this._placeholder.bind_property('visible',
             this._clearButton, 'visible',
-            GObject.BindingFlags.INVERT_BOOLEAN);
+            GObject.BindingFlags.INVERT_BOOLEAN | GObject.BindingFlags.SYNC_CREATE);
 
         this._messageView.connectObject(
             'message-focused', (_s, messageActor) => {

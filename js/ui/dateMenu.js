@@ -866,21 +866,9 @@ class DateMenuButton extends PanelMenu.Button {
         this._clockDisplay.clutter_text.y_align = Clutter.ActorAlign.CENTER;
         this._clockDisplay.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
 
-        this._indicator = new MessagesIndicator();
-
-        const indicatorPad = new St.Widget();
-        this._indicator.bind_property('visible',
-            indicatorPad, 'visible',
-            GObject.BindingFlags.SYNC_CREATE);
-        indicatorPad.add_constraint(new Clutter.BindConstraint({
-            source: this._indicator,
-            coordinate: Clutter.BindCoordinate.SIZE,
-        }));
-
+        // Notifications live in their own panel button (NotificationsButton)
         const box = new St.BoxLayout({style_class: 'clock-display-box'});
-        box.add_child(indicatorPad);
         box.add_child(this._clockDisplay);
-        box.add_child(this._indicator);
 
         this.label_actor = this._clockDisplay;
         this.add_child(box);
@@ -916,12 +904,7 @@ class DateMenuButton extends PanelMenu.Button {
             }
         });
 
-        // Fill up the first column
-        this._messageList = new Calendar.CalendarMessageList();
-        this._messageList.setCaptureContainer(this.menu.actor);
-        hbox.add_child(this._messageList);
-
-        // Fill up the second column
+        // Fill up the (only) column
         const boxLayout = new CalendarColumnLayout([this._calendar, this._date]);
         const vbox = new St.Widget({
             style_class: 'datemenu-calendar-column',
@@ -1001,7 +984,49 @@ class DateMenuButton extends PanelMenu.Button {
         // but the corresponding app (clocks, weather); however we can consider
         // that display-specific settings, so re-use "allowSettings" here ...
         this._displaysSection.visible = Main.sessionMode.allowSettings;
+    }
+});
 
-        this._messageList.visible = Main.sessionMode.hasNotifications && !Main.sessionMode.isGreeter;
+// Bell button with the notification list in its own popup
+export const NotificationsButton = GObject.registerClass(
+class NotificationsButton extends PanelMenu.Button {
+    _init() {
+        super._init(0.5);
+
+        this._icon = new St.Icon({
+            icon_name: 'preferences-system-notifications-symbolic',
+            style_class: 'system-status-icon notifications-icon',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.add_child(this._icon);
+        this.add_style_class_name('notifications-button');
+        this.accessible_name = _('Notifications');
+
+        this.menu.box.add_style_class_name('notifications-popover');
+        this.menu.actor.set_keynav_flags(St.KeynavFlags.NONE);
+
+        this._messageList = new Calendar.CalendarMessageList();
+        this._messageList.setCaptureContainer(this.menu.actor);
+        this.menu.box.add_child(this._messageList);
+
+        // Tint the bell while there is something unread (same rule the old
+        // dot next to the clock used: not in Do Not Disturb, count > 0)
+        this._indicator = new MessagesIndicator();
+        this._indicator.connectObject('notify::visible', this._syncUnread.bind(this), this);
+        this._syncUnread();
+
+        Main.sessionMode.connectObject('updated', this._sessionUpdated.bind(this), this);
+        this._sessionUpdated();
+    }
+
+    _syncUnread() {
+        if (this._indicator.visible)
+            this._icon.add_style_class_name('unread');
+        else
+            this._icon.remove_style_class_name('unread');
+    }
+
+    _sessionUpdated() {
+        this.visible = Main.sessionMode.hasNotifications && !Main.sessionMode.isGreeter;
     }
 });

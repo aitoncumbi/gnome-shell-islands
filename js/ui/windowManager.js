@@ -1772,7 +1772,8 @@ export class WindowManager {
     }
 
     _toggleCalendar() {
-        Main.panel.toggleCalendar();
+        // the message tray shortcut opens the notifications popup
+        Main.panel.toggleNotifications();
     }
 
     _toggleQuickSettings() {

@@ -273,3 +273,17 @@ $activity_muted: #b4b9c2;
 
   .notch-times { font-size: 11px; color: $activity_muted; margin-top: 4px; }
 }
+
+// Notifications bell (its popup holds the message list)
+#panel .notifications-button .notifications-icon {
+  icon-size: $scalable_icon_size;
+  &.unread { color: $activity_accent; }
+}
+
+.notifications-popover .message-list {
+  // the list is alone in its popup: no divider/side margins meant for the
+  // old two-column calendar menu
+  border-width: 0;
+  margin: 0;
+  padding: 0;
+}
