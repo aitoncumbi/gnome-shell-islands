@@ -303,6 +303,7 @@ const QuickSettings = GObject.registerClass(
 class QuickSettings extends PanelMenu.Button {
     constructor() {
         super(0.0, C_('System menu in the top bar', 'System'), true);
+        this.add_style_class_name('quick-settings-button');
 
         this._indicators = new St.BoxLayout({
             style_class: 'panel-status-indicators-box',

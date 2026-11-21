@@ -288,13 +288,18 @@ $activity_muted: #b4b9c2;
   padding: 0;
 }
 
-// Tighter clock: less padding around the time
+// Tighter clock and status area: less empty space between the icons and the time
 #panel .panel-button.clock-display {
-  -natural-hpadding: $base_padding;
-  -minimum-hpadding: $base_padding * 0.5;
+  -natural-hpadding: 0;
+  -minimum-hpadding: 0;
 }
 
 #panel .clock-display-box .clock {
-  padding-left: $base_padding;
-  padding-right: $base_padding;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+#panel .panel-button.quick-settings-button {
+  -natural-hpadding: $base_padding * 1.25;
+  -minimum-hpadding: $base_padding * 0.5;
 }
