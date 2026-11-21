@@ -1015,6 +1015,10 @@ class NotificationsButton extends PanelMenu.Button {
         this._indicator.connectObject('notify::visible', this._syncUnread.bind(this), this);
         this._syncUnread();
 
+        // The bell only shows while the list has something in it
+        this._messageList._messageView.connectObject(
+            'notify::empty', this._sessionUpdated.bind(this), this);
+
         Main.sessionMode.connectObject('updated', this._sessionUpdated.bind(this), this);
         this._sessionUpdated();
     }
@@ -1027,6 +1031,11 @@ class NotificationsButton extends PanelMenu.Button {
     }
 
     _sessionUpdated() {
-        this.visible = Main.sessionMode.hasNotifications && !Main.sessionMode.isGreeter;
+        const hasList = Main.sessionMode.hasNotifications && !Main.sessionMode.isGreeter;
+        const empty = this._messageList._messageView.empty;
+        // close the popup before the bell disappears under it
+        if (empty && this.menu.isOpen)
+            this.menu.close();
+        this.visible = hasList && !empty;
     }
 });
