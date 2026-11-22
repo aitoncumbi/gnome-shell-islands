@@ -1,6 +1,4 @@
 import GObject from 'gi://GObject';
-import Clutter from 'gi://Clutter';
-import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 
 import * as Main from './main.js';
@@ -13,13 +11,7 @@ const TYPING_GRACE_MS = 1200;
 
 export class WindowAttentionHandler {
     constructor() {
-        this._lastKeyTime = 0;
-        global.stage.connectObject('captured-event', (_actor, event) => {
-            if (event.type() === Clutter.EventType.KEY_PRESS)
-                this._lastKeyTime = GLib.get_monotonic_time() / 1000;
-            return Clutter.EVENT_PROPAGATE;
-        }, this);
-        this._tracker = Shell.WindowTracker.get_default();
+        this._idleMonitor = global.backend.get_core_idle_monitor();
         global.display.connectObject(
             'window-demands-attention', this._onWindowDemandsAttention.bind(this),
             'window-marked-urgent', this._onWindowDemandsAttention.bind(this),
@@ -44,9 +36,10 @@ export class WindowAttentionHandler {
         if (!window || window.has_focus() || window.is_skip_taskbar())
             return;
 
-        const typing =
-            GLib.get_monotonic_time() / 1000 - this._lastKeyTime < TYPING_GRACE_MS;
-        if (!typing) {
+        // Keys typed into apps never reach the shell, so ask mutter how long
+        // the user has been idle (any input counts, keyboard or pointer)
+        const active = this._idleMonitor.get_idletime() < TYPING_GRACE_MS;
+        if (!active) {
             Main.activateWindow(window);
             return;
         }

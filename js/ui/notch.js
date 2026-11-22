@@ -2,6 +2,7 @@ import Clutter from 'gi://Clutter';
 import GdkPixbuf from 'gi://GdkPixbuf';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Graphene from 'gi://Graphene';
 import GObject from 'gi://GObject';
 import Soup from 'gi://Soup';
 import St from 'gi://St';
@@ -206,15 +207,52 @@ def scan_downloads(now):
             name = name[:-len(suffix)]
     return {'name': name, 'bytes': size, 'total': dl_totals.get(path)}
 
-while True:
+# Scanning every process's file descriptors costs ~50 ms of CPU, so only do it
+# when the system is actually writing (nr_dirtied counts pages dirtied by any
+# filesystem, including FUSE/network ones), while a copy is known, and once in
+# a while as a backstop for very slow copies.
+def dirtied():
     try:
-        b = scan()
+        with open('/proc/vmstat') as f:
+            for line in f:
+                if line.startswith('nr_dirtied '):
+                    return int(line.split()[1])
     except Exception:
-        b = None
+        pass
+    return None
+
+WRITE_PAGES = 128      # ~0.5 MB dirtied since the last check counts as activity
+BUSY_FOR = 8           # keep scanning this long after the last activity
+BACKSTOP = 15
+IDLE_LINES = 6         # idle lines the shell needs to see before we go quiet
+last_dirt = dirtied()
+busy_until = 0
+last_scan = 0
+b = None
+idle_sent = 0
+while True:
+    now = time.time()
+    d = dirtied()
+    if d is None or last_dirt is None or d - last_dirt >= WRITE_PAGES:
+        busy_until = now + BUSY_FOR
+    last_dirt = d
+    if b is not None or now < busy_until or now - last_scan >= BACKSTOP:
+        try:
+            b = scan()
+        except Exception:
+            b = None
+        last_scan = now
     try:
-        dl = scan_downloads(time.time())
+        dl = scan_downloads(now)
     except Exception:
         dl = None
+    if b is None and dl is None:
+        idle_sent += 1
+        if idle_sent > IDLE_LINES:
+            time.sleep(1)
+            continue
+    else:
+        idle_sent = 0
     print(json.dumps({
         'copy': {'name': b[0], 'pct': b[1]} if b else None,
         'download': dl,
@@ -715,10 +753,20 @@ class NotchIsland extends St.Widget {
         });
         this._eqBars = [];
         for (let i = 0; i < EQ_BARS; i++) {
+            // Fixed-size bar scaled from its bottom edge: scaling is a pure
+            // transform, so the animation never triggers a relayout
             const bar = new St.Widget({
                 style_class: 'notch-eq-bar',
                 y_align: Clutter.ActorAlign.END,
-                height: EQ_MIN,
+                height: EQ_MAX,
+                pivot_point: new Graphene.Point({x: 0.5, y: 1}),
+                scale_y: EQ_MIN / EQ_MAX,
+            });
+            bar.connect('notify::mapped', () => {
+                if (bar.mapped)
+                    this._eqStep(bar);
+                else
+                    bar._eqActive = false;
             });
             this._eqBars.push(bar);
             this._eq.add_child(bar);
@@ -1294,20 +1342,29 @@ class NotchIsland extends St.Widget {
     _stopEq() {
         this._eqRunning = false;
         this._eqBars.forEach(bar => {
+            bar._eqActive = false;
             bar.remove_all_transitions();
-            bar.height = EQ_MIN;
+            bar.scale_y = EQ_MIN / EQ_MAX;
         });
     }
 
     _eqStep(bar, delay = 0) {
-        if (!this._eqRunning)
+        // An unmapped actor finishes its transition at once, which would make
+        // this loop spin forever; wait for the bar to appear instead
+        if (!this._eqRunning || bar._eqActive)
             return;
+        if (!bar.mapped)
+            return;
+        bar._eqActive = true;
         bar.ease({
-            height: EQ_MIN + Math.random() * (EQ_MAX - EQ_MIN),
+            scale_y: (EQ_MIN + Math.random() * (EQ_MAX - EQ_MIN)) / EQ_MAX,
             duration: 380 + Math.random() * 260,
             delay,
             mode: Clutter.AnimationMode.EASE_IN_OUT_SINE,
-            onComplete: () => this._eqStep(bar),
+            onComplete: () => {
+                bar._eqActive = false;
+                this._eqStep(bar);
+            },
         });
     }
 
