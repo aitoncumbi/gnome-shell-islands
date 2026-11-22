@@ -21,8 +21,8 @@ $island_dark: #0c0c0d; // solid dark for glyphs on the light play button
 $island_fg_color: $light_1;
 
 #panel {
-  // translucent bar; the status area has no island background of its own
-  background-color: rgba(0, 0, 0, 0.35);
+  // fully transparent bar; the status area has no island background of its own
+  background-color: transparent;
   font-weight: bold;
   height: $panel_height;
   @extend %numeric;
