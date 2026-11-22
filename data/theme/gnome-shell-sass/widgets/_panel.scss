@@ -7,9 +7,9 @@ $recording_indicator_color: $red_4;
 $transparent_panel_fg_color: $light_1;    // always white for transparent lock screens
 $system_panel_fg_color: $system_fg_color; // always light for lockscreen, overview
 
-// Bar height. With the 4px gap above and below, the islands come out at
-// exactly $panel_height - 8px (40px -> 32px islands); see ISLAND_VERTICAL_INSET
-$panel_height: 40px;
+// Bar height. With the 2px gap above and below, the islands come out at
+// exactly $panel_height - 4px (28px -> 24px islands); see ISLAND_VERTICAL_INSET
+$panel_height: 28px;
 $panel_transition_duration: 250ms; // same as the overview transition duration
 
 // The islands use GNOME's usual gray (the same mix the folder tiles use),

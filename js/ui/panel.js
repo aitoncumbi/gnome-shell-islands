@@ -6,6 +6,7 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
 import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Config from '../misc/config.js';
@@ -449,7 +450,7 @@ const PANEL_ITEM_IMPLEMENTATIONS = {
 
 // Layout of the three-island top bar (logical pixels)
 const ISLAND_EDGE_MARGIN = 8;
-const ISLAND_VERTICAL_INSET = 4;
+const ISLAND_VERTICAL_INSET = 2;
 const BUMP_WIDTH = 52;
 const BUMP_HEIGHT = 20;
 const BUMP_RIGHT_OFFSET = 100;
@@ -598,6 +599,15 @@ export class Panel extends St.Widget {
             'changed::picture-uri-dark', refresh,
             'changed::picture-options', refresh, this);
         this._ifaceSettings.connectObject('changed::color-scheme', refresh, this);
+        // Frosted-glass backdrop. The only thing under the bar is the
+        // wallpaper (windows sit below it, fullscreen hides it), so this
+        // strip is re-blurred rarely and is only ~28px tall.
+        this.add_effect(new Shell.BlurEffect({
+            name: 'panel-blur',
+            mode: Shell.BlurMode.BACKGROUND,
+            radius: 12,
+            brightness: 0.95,
+        }));
         this._tintCancellable = null;
         this._tintCss = '';
         this._baseStyle = '';
@@ -654,8 +664,8 @@ export class Panel extends St.Widget {
         }
         const css = ([r, g, b, c]) => {
             // a touch darker so white text stays readable
-            const k = 0.7 / c;
-            return `rgba(${Math.round(r * k)}, ${Math.round(g * k)}, ${Math.round(b * k)}, 0.55)`;
+            const k = 0.8 / c;
+            return `rgba(${Math.round(r * k)}, ${Math.round(g * k)}, ${Math.round(b * k)}, 0.4)`;
         };
         this._tintCss = `background-gradient-direction: horizontal; ` +
             `background-gradient-start: ${css(sums[0])}; ` +
