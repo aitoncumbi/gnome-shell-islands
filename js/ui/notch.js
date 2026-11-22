@@ -49,6 +49,7 @@ const PAUSE_GRACE_SECONDS = 120;
 const EQ_BARS = 4;
 const EQ_MIN = 4;
 const EQ_MAX = 14;
+const EQ_TICK_MS = 130;
 
 const COPY_WATCHER = String.raw`
 import os, stat, time, json, sys, glob, shutil, sqlite3, subprocess, tempfile
@@ -225,12 +226,17 @@ WRITE_PAGES = 128      # ~0.5 MB dirtied since the last check counts as activity
 BUSY_FOR = 8           # keep scanning this long after the last activity
 BACKSTOP = 15
 IDLE_LINES = 6         # idle lines the shell needs to see before we go quiet
+PARENT = os.getppid()
 last_dirt = dirtied()
 busy_until = 0
 last_scan = 0
 b = None
 idle_sent = 0
 while True:
+    # Quiet when idle means no broken-pipe error to end us: leave on our own
+    # when the shell that started us is gone
+    if os.getppid() != PARENT:
+        sys.exit(0)
     now = time.time()
     d = dirtied()
     if d is None or last_dirt is None or d - last_dirt >= WRITE_PAGES:
@@ -587,12 +593,17 @@ class FillArea extends St.DrawingArea {
         if (value === this._fraction)
             return;
         this._fraction = value;
+        // A repaint is a cairo draw plus a texture upload: skip it unless the
+        // filled width actually moved by a pixel
+        if (Math.round(this.width * value) === this._paintedPx)
+            return;
         this.queue_repaint();
     }
 
     vfunc_repaint() {
         const cr = this.get_context();
         const [w, h] = this.get_surface_size();
+        this._paintedPx = Math.round(this.width * this._fraction);
         const r = Math.max(0, Math.min(this._radius, w / 2, h / 2));
         const [red, green, blue] = this._color;
 
@@ -655,6 +666,7 @@ class NotchIsland extends St.Widget {
         this._fromH = this._toH = SIZES.music[1];
         this._hidden = false;
         this._eqRunning = false;
+        this._eqTimer = 0;
         this._pollId = 0;
         this._hoverPollId = 0;
         this._positionId = 0;
@@ -761,12 +773,6 @@ class NotchIsland extends St.Widget {
                 height: EQ_MAX,
                 pivot_point: new Graphene.Point({x: 0.5, y: 1}),
                 scale_y: EQ_MIN / EQ_MAX,
-            });
-            bar.connect('notify::mapped', () => {
-                if (bar.mapped)
-                    this._eqStep(bar);
-                else
-                    bar._eqActive = false;
             });
             this._eqBars.push(bar);
             this._eq.add_child(bar);
@@ -1289,20 +1295,13 @@ class NotchIsland extends St.Widget {
 
     _setProgress(fraction) {
         fraction = clamp01(fraction);
-        const jump = Math.abs(fraction - this._progressFraction) > 0.2;
         this._progressFraction = fraction;
         this._bar.fraction = fraction;
 
+        // The position arrives once a second. Gliding between samples meant a
+        // full cairo repaint of the pill on every frame (~60/s), so just step.
         this._fillAdj.remove_transition('value');
-        if (jump || !this._fill.visible) {
-            this._fillAdj.value = fraction;
-        } else {
-            // The position is polled once a second: glide between samples
-            this._fillAdj.ease(fraction, {
-                duration: 1000,
-                mode: Clutter.AnimationMode.LINEAR,
-            });
-        }
+        this._fillAdj.value = fraction;
     }
 
     _renderCopy() {
@@ -1331,40 +1330,38 @@ class NotchIsland extends St.Widget {
         return _('%d min left').format(Math.ceil(seconds / 60));
     }
 
-    // Animated equalizer bars next to the track
+    // Equalizer bars next to the track. A slow timer jumps the bars to new
+    // heights (~8 redraws a second); easing them at the frame rate kept the
+    // whole panel redrawing 60 times a second for as long as music played.
     _startEq() {
-        if (this._eqRunning)
+        if (this._eqTimer)
             return;
         this._eqRunning = true;
-        this._eqBars.forEach((bar, i) => this._eqStep(bar, i * 140));
+        this._eqTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, EQ_TICK_MS, () => {
+            if (!this._eqRunning) {
+                this._eqTimer = 0;
+                return GLib.SOURCE_REMOVE;
+            }
+            // nothing to draw while the pill is hidden
+            if (this._eq.mapped) {
+                for (const bar of this._eqBars) {
+                    if (Math.random() < 0.6)
+                        bar.scale_y = (EQ_MIN + Math.random() * (EQ_MAX - EQ_MIN)) / EQ_MAX;
+                }
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+        GLib.Source.set_name_by_id(this._eqTimer, '[gnome-shell] notch equalizer');
     }
 
     _stopEq() {
         this._eqRunning = false;
+        if (this._eqTimer) {
+            GLib.source_remove(this._eqTimer);
+            this._eqTimer = 0;
+        }
         this._eqBars.forEach(bar => {
-            bar._eqActive = false;
-            bar.remove_all_transitions();
             bar.scale_y = EQ_MIN / EQ_MAX;
-        });
-    }
-
-    _eqStep(bar, delay = 0) {
-        // An unmapped actor finishes its transition at once, which would make
-        // this loop spin forever; wait for the bar to appear instead
-        if (!this._eqRunning || bar._eqActive)
-            return;
-        if (!bar.mapped)
-            return;
-        bar._eqActive = true;
-        bar.ease({
-            scale_y: (EQ_MIN + Math.random() * (EQ_MAX - EQ_MIN)) / EQ_MAX,
-            duration: 380 + Math.random() * 260,
-            delay,
-            mode: Clutter.AnimationMode.EASE_IN_OUT_SINE,
-            onComplete: () => {
-                bar._eqActive = false;
-                this._eqStep(bar);
-            },
         });
     }
 
