@@ -21,7 +21,7 @@ $island_dark: #0c0c0d; // solid dark for glyphs on the light play button
 $island_fg_color: $light_1;
 
 #panel {
-  // fully transparent bar; the status area has no island background of its own
+  // transparent by default; panel.js tints it from the wallpaper. The status area has no island background of its own
   background-color: transparent;
   font-weight: bold;
   height: $panel_height;

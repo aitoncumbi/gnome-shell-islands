@@ -1,5 +1,7 @@
 import Atk from 'gi://Atk';
 import Clutter from 'gi://Clutter';
+import GdkPixbuf from 'gi://GdkPixbuf';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
@@ -579,6 +581,93 @@ export class Panel extends St.Widget {
 
         // The center island: a notch that expands on hover
         this._notch = new NotchIsland(this);
+
+        this._initBarTint();
+    }
+
+    // Soft wallpaper-colored wash behind the bar: the average color of the
+    // wallpaper's top strip, left and right halves, as a two-stop gradient.
+    // Computed once per wallpaper change from a tiny decode, so it costs
+    // nothing per frame (no live blur).
+    _initBarTint() {
+        this._bgSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
+        this._ifaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        const refresh = () => this._refreshBarTint();
+        this._bgSettings.connectObject(
+            'changed::picture-uri', refresh,
+            'changed::picture-uri-dark', refresh,
+            'changed::picture-options', refresh, this);
+        this._ifaceSettings.connectObject('changed::color-scheme', refresh, this);
+        this._tintCancellable = null;
+        this._tintCss = '';
+        this._baseStyle = '';
+        this.connect('destroy', () => this._tintCancellable?.cancel());
+        refresh();
+    }
+
+    _refreshBarTint() {
+        this._tintCancellable?.cancel();
+        const dark = this._ifaceSettings.get_string('color-scheme') === 'prefer-dark';
+        let uri = this._bgSettings.get_string(dark ? 'picture-uri-dark' : 'picture-uri');
+        if (!uri)
+            uri = this._bgSettings.get_string('picture-uri');
+        if (!uri || this._bgSettings.get_string('picture-options') === 'none') {
+            this._tintCss = '';
+            this.setBaseStyle(this._baseStyle);
+            return;
+        }
+
+        const cancellable = this._tintCancellable = new Gio.Cancellable();
+        const file = Gio.File.new_for_uri(uri);
+        file.read_async(GLib.PRIORITY_LOW, cancellable, (f, res) => {
+            let stream;
+            try {
+                stream = f.read_finish(res);
+            } catch (e) {
+                return;
+            }
+            GdkPixbuf.Pixbuf.new_from_stream_at_scale_async(
+                stream, 96, 96, true, cancellable, (_o, res2) => {
+                    try {
+                        const pb = GdkPixbuf.Pixbuf.new_from_stream_finish(res2);
+                        this._applyBarTint(pb);
+                    } catch (e) {
+                        // unreadable wallpaper: leave the bar clear
+                    }
+                    stream.close_async(GLib.PRIORITY_LOW, null, null);
+                });
+        });
+    }
+
+    _applyBarTint(pb) {
+        const w = pb.get_width(), h = pb.get_height();
+        const rows = Math.max(1, Math.round(h * 0.08));
+        const n = pb.get_n_channels(), stride = pb.get_rowstride();
+        const px = pb.get_pixels();
+        const sums = [[0, 0, 0, 0], [0, 0, 0, 0]];
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < w; x++) {
+                const i = y * stride + x * n;
+                const a = sums[x < w / 2 ? 0 : 1];
+                a[0] += px[i]; a[1] += px[i + 1]; a[2] += px[i + 2]; a[3]++;
+            }
+        }
+        const css = ([r, g, b, c]) => {
+            // a touch darker so white text stays readable
+            const k = 0.7 / c;
+            return `rgba(${Math.round(r * k)}, ${Math.round(g * k)}, ${Math.round(b * k)}, 0.55)`;
+        };
+        this._tintCss = `background-gradient-direction: horizontal; ` +
+            `background-gradient-start: ${css(sums[0])}; ` +
+            `background-gradient-end: ${css(sums[1])};`;
+        this.setBaseStyle(this._baseStyle);
+    }
+
+    // The overview sets the panel's inline style for its transitions; this
+    // keeps the wallpaper tint alongside it
+    setBaseStyle(style) {
+        this._baseStyle = style;
+        this.style = `${style} ${this._tintCss ?? ''}`;
     }
 
     vfunc_get_preferred_width(_forHeight) {
