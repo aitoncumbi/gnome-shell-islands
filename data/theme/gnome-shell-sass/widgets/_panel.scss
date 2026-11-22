@@ -21,8 +21,8 @@ $island_dark: #0c0c0d; // solid dark for glyphs on the light play button
 $island_fg_color: $light_1;
 
 #panel {
-  // the bar itself is invisible, only the three islands are drawn
-  background-color: transparent;
+  // translucent bar; the status area has no island background of its own
+  background-color: rgba(0, 0, 0, 0.35);
   font-weight: bold;
   height: $panel_height;
   @extend %numeric;
@@ -31,7 +31,7 @@ $island_fg_color: $light_1;
   // islands: start, center (the notch) and end
   #panelLeft,
   #panelRight {
-    background-color: $island_bg_color;
+    background-color: transparent;
     border-radius: 999px;
   }
 
