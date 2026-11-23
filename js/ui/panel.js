@@ -658,7 +658,7 @@ export class Panel extends St.Widget {
             this._tintCss = '';
         } else {
             const [r, g, b] = accent.bar;
-            this._tintCss = `background-color: rgba(${r}, ${g}, ${b}, 0.5);`;
+            this._tintCss = `background-color: rgba(${r}, ${g}, ${b}, 0.8);`;
         }
         this.setBaseStyle(this._baseStyle);
     }
