@@ -16,7 +16,7 @@ import * as PopupMenu from './popupMenu.js';
 import * as PanelMenu from './panelMenu.js';
 import {QuickSettingsMenu, SystemIndicator} from './quickSettings.js';
 import * as Main from './main.js';
-import {NotchIsland, getClocksTimerPresets, formatDuration, TIMER_ENABLED} from './notch.js';
+import {NotchIsland, accentFromPixbuf, getClocksTimerPresets, formatDuration, TIMER_ENABLED} from './notch.js';
 import * as Util from '../misc/util.js';
 
 import * as RemoteAccessStatus from './status/remoteAccess.js';
@@ -586,8 +586,8 @@ export class Panel extends St.Widget {
         this._initBarTint();
     }
 
-    // Soft wallpaper-colored wash behind the bar: the average color of the
-    // wallpaper's top strip, left and right halves, as a two-stop gradient.
+    // Frosted-glass wash behind the bar in the wallpaper's accent color (the
+    // same dominant-hue picker the music pill uses), over a blurred backdrop.
     // Computed once per wallpaper change from a tiny decode, so it costs
     // nothing per frame (no live blur).
     _initBarTint() {
@@ -637,7 +637,7 @@ export class Panel extends St.Widget {
                 return;
             }
             GdkPixbuf.Pixbuf.new_from_stream_at_scale_async(
-                stream, 96, 96, true, cancellable, (_o, res2) => {
+                stream, 48, 48, true, cancellable, (_o, res2) => {
                     try {
                         const pb = GdkPixbuf.Pixbuf.new_from_stream_finish(res2);
                         this._applyBarTint(pb);
@@ -650,26 +650,17 @@ export class Panel extends St.Widget {
     }
 
     _applyBarTint(pb) {
-        const w = pb.get_width(), h = pb.get_height();
-        const rows = Math.max(1, Math.round(h * 0.08));
-        const n = pb.get_n_channels(), stride = pb.get_rowstride();
-        const px = pb.get_pixels();
-        const sums = [[0, 0, 0, 0], [0, 0, 0, 0]];
-        for (let y = 0; y < rows; y++) {
-            for (let x = 0; x < w; x++) {
-                const i = y * stride + x * n;
-                const a = sums[x < w / 2 ? 0 : 1];
-                a[0] += px[i]; a[1] += px[i + 1]; a[2] += px[i + 2]; a[3]++;
-            }
+        // dominant vivid hue of the whole wallpaper (grays are ignored);
+        // mostly-gray wallpapers fall back to a calm blue-gray
+        const accent = accentFromPixbuf(pb);
+        if (!accent?.bar) {
+            this._tintCss = '';
+        } else {
+            const [r, g, b] = accent.bar;
+            this._tintCss = 'background-gradient-direction: vertical; ' +
+                `background-gradient-start: rgba(${r}, ${g}, ${b}, 0.72); ` +
+                `background-gradient-end: rgba(${r}, ${g}, ${b}, 0.56);`;
         }
-        const css = ([r, g, b, c]) => {
-            // a touch darker so white text stays readable
-            const k = 0.8 / c;
-            return `rgba(${Math.round(r * k)}, ${Math.round(g * k)}, ${Math.round(b * k)}, 0.4)`;
-        };
-        this._tintCss = `background-gradient-direction: horizontal; ` +
-            `background-gradient-start: ${css(sums[0])}; ` +
-            `background-gradient-end: ${css(sums[1])};`;
         this.setBaseStyle(this._baseStyle);
     }
 

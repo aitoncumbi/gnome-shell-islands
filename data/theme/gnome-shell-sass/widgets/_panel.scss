@@ -25,6 +25,8 @@ $island_fg_color: $light_1;
   background-color: transparent;
   font-weight: bold;
   height: $panel_height;
+  // faint glass edge, like the macOS menu bar
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
   @extend %numeric;
   transition-duration: $panel_transition_duration;
 

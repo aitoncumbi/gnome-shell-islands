@@ -403,7 +403,15 @@ function withLuminance(h, s, target) {
 // Dominant vivid hue of an image file -> {fill, tint} as [r, g, b]
 function accentFromFile(path) {
     try {
-        const pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, 32, 32, false);
+        return accentFromPixbuf(GdkPixbuf.Pixbuf.new_from_file_at_scale(path, 32, 32, false));
+    } catch (e) {
+        log(`Notch: could not read the album art colors: ${e.message}`);
+        return null;
+    }
+}
+
+export function accentFromPixbuf(pixbuf) {
+    try {
         const pixels = pixbuf.get_pixels();
         const channels = pixbuf.get_n_channels();
         const stride = pixbuf.get_rowstride();
@@ -437,6 +445,7 @@ function accentFromFile(path) {
         return {
             fill: withLuminance(h, s, FILL_LUMINANCE),
             tint: withLuminance(h, Math.min(0.9, s + 0.1), TINT_LUMINANCE),
+            bar: withLuminance(h, Math.min(0.9, s + 0.1), 0.2),
         };
     } catch (e) {
         log(`Notch: could not read the album art colors: ${e.message}`);
