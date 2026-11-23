@@ -179,6 +179,11 @@ $island_fg_color: $light_1;
   }
 }
 
+#panel.status-hidden {
+  background-color: transparent;
+  border-bottom-width: 0;
+}
+
 // Status island: chevron that hides it, and the tab that brings it back
 #panel .panel-status-toggle {
   border-radius: 999px;

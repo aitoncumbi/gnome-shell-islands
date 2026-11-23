@@ -602,12 +602,13 @@ export class Panel extends St.Widget {
         // Frosted-glass backdrop. The only thing under the bar is the
         // wallpaper (windows sit below it, fullscreen hides it), so this
         // strip is re-blurred rarely and is only ~28px tall.
-        this.add_effect(new Shell.BlurEffect({
+        this._blur = new Shell.BlurEffect({
             name: 'panel-blur',
             mode: Shell.BlurMode.BACKGROUND,
             radius: 12,
             brightness: 0.95,
-        }));
+        });
+        this.add_effect(this._blur);
         this._tintCancellable = null;
         this._tintCss = '';
         this._baseStyle = '';
@@ -668,7 +669,7 @@ export class Panel extends St.Widget {
     // keeps the wallpaper tint alongside it
     setBaseStyle(style) {
         this._baseStyle = style;
-        this.style = `${style} ${this._tintCss ?? ''}`;
+        this.style = `${style} ${this._statusHidden ? '' : (this._tintCss ?? '')}`;
     }
 
     vfunc_get_preferred_width(_forHeight) {
@@ -784,6 +785,14 @@ export class Panel extends St.Widget {
         if (this._statusHidden === hidden)
             return;
         this._statusHidden = hidden;
+
+        // The bar's glass background goes away with the islands
+        this._blur?.set_enabled(!hidden);
+        if (hidden)
+            this.add_style_class_name('status-hidden');
+        else
+            this.remove_style_class_name('status-hidden');
+        this.setBaseStyle(this._baseStyle ?? '');
 
         if (hidden) {
             this.closeQuickSettings();
