@@ -658,9 +658,7 @@ export class Panel extends St.Widget {
             this._tintCss = '';
         } else {
             const [r, g, b] = accent.bar;
-            this._tintCss = 'background-gradient-direction: vertical; ' +
-                `background-gradient-start: rgba(${r}, ${g}, ${b}, 0.72); ` +
-                `background-gradient-end: rgba(${r}, ${g}, ${b}, 0.56);`;
+            this._tintCss = `background-color: rgba(${r}, ${g}, ${b}, 0.5);`;
         }
         this.setBaseStyle(this._baseStyle);
     }
