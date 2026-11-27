@@ -1,0 +1,10 @@
+#!/bin/sh
+# Starts the patched GNOME Shell. Falls back to the stock shell when the
+# patched one is missing or broken, or when you create
+#   ~/.config/gs-notch-disable
+# (for example from a TTY if the desktop will not start).
+OURS="@PREFIX@/bin/gnome-shell"
+if [ ! -e "$HOME/.config/gs-notch-disable" ] && [ -x "$OURS" ] && "$OURS" --version >/dev/null 2>&1; then
+    exec "$OURS" "$@"
+fi
+exec /usr/bin/gnome-shell "$@"
