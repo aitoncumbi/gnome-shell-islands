@@ -1,0 +1,224 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $CcTopBarPanel: $CcPanel {
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {}
+
+    content: Stack stack {
+      StackPage {
+        name: "unavailable";
+
+        child: Adw.StatusPage {
+          icon-name: "org.gnome.Settings-top-bar-symbolic";
+          title: _("Top Bar Settings Unavailable");
+          description: _("The modified GNOME Shell is not installed");
+        };
+      }
+
+      StackPage {
+        name: "settings";
+
+        child: Adw.PreferencesPage {
+          Adw.PreferencesGroup {
+            title: _("Bar");
+
+            Adw.SpinRow height_row {
+              title: _("Height");
+              adjustment: Adjustment {
+                lower: 24;
+                upper: 48;
+                step-increment: 1;
+                page-increment: 4;
+              };
+            }
+
+            Adw.SpinRow background_opacity_row {
+              title: _("Background Opacity");
+              subtitle: _("Percentage, 0 is fully transparent");
+              adjustment: Adjustment {
+                lower: 0;
+                upper: 100;
+                step-increment: 5;
+                page-increment: 20;
+              };
+            }
+
+            Adw.SwitchRow show_border_row {
+              title: _("Line Below the Bar");
+            }
+
+            Adw.SwitchRow show_hide_button_row {
+              title: _("Hide Button");
+              subtitle: _("A button that slides the bar off the screen");
+            }
+
+            Adw.SwitchRow remember_hidden_row {
+              title: _("Stay Hidden");
+              subtitle: _("Keep a hidden bar hidden after logging in or unlocking");
+              sensitive: bind show_hide_button_row.active;
+            }
+          }
+
+          Adw.PreferencesGroup global_menu_group {
+            title: _("Global Menu");
+            description: _("The menus of the focused app, at the start of the bar");
+
+            Adw.SwitchRow menu_enabled_row {
+              title: _("Show Global Menu");
+            }
+
+            Adw.SwitchRow menu_app_name_row {
+              title: _("App Name");
+              sensitive: bind menu_enabled_row.active;
+            }
+
+            Adw.SwitchRow menu_shortcuts_row {
+              title: _("Keyboard Shortcuts in Menus");
+              sensitive: bind menu_enabled_row.active;
+            }
+
+            Adw.SwitchRow menu_bundled_row {
+              title: _("Shortcut Menus");
+              subtitle: _("Bundled menus for apps that have none of their own");
+              sensitive: bind menu_enabled_row.active;
+            }
+
+            Adw.SwitchRow menu_scan_row {
+              title: _("Scan Apps for Menus");
+              subtitle: _("Look for menus that apps do not export. Nothing of the app is run.");
+              sensitive: bind menu_enabled_row.active;
+            }
+
+            Adw.SwitchRow menu_fallback_row {
+              title: _("Generic Menu");
+              subtitle: _("Window and session actions when there is no other menu");
+              sensitive: bind menu_enabled_row.active;
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Activity Pill");
+            description: _("Live activity next to the status icons");
+
+            Adw.SwitchRow activity_pill_row {
+              title: _("Show Activity Pill");
+            }
+
+            Adw.SwitchRow activity_music_row {
+              title: _("Music");
+              sensitive: bind activity_pill_row.active;
+            }
+
+            Adw.SwitchRow activity_copies_row {
+              title: _("File Copies");
+              sensitive: bind activity_pill_row.active;
+            }
+
+            Adw.SwitchRow activity_downloads_row {
+              title: _("Downloads");
+              sensitive: bind activity_pill_row.active;
+            }
+
+            Adw.SpinRow activity_blur_row {
+              title: _("Blur");
+              sensitive: bind activity_pill_row.active;
+              adjustment: Adjustment {
+                lower: 2;
+                upper: 40;
+                step-increment: 1;
+                page-increment: 5;
+              };
+            }
+
+            Adw.SpinRow activity_tint_row {
+              title: _("Darkness");
+              subtitle: _("Percentage, always darker while expanded");
+              sensitive: bind activity_pill_row.active;
+              adjustment: Adjustment {
+                lower: 0;
+                upper: 90;
+                step-increment: 2;
+                page-increment: 10;
+              };
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Notifications");
+
+            Adw.SwitchRow bell_always_visible_row {
+              title: _("Always Show Bell");
+              subtitle: _("Otherwise only while there are notifications");
+            }
+
+            Adw.SwitchRow raise_windows_row {
+              title: _("Raise Windows That Ask for Attention");
+              subtitle: _("Unless you are typing. Otherwise they send a notification.");
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Window Animations");
+
+            Adw.ComboRow minimize_effect_row {
+              title: _("Minimize and Restore");
+            }
+
+            Adw.ComboRow open_effect_row {
+              title: _("Open");
+            }
+
+            Adw.ComboRow close_effect_row {
+              title: _("Close");
+            }
+
+            Adw.SpinRow animation_speed_row {
+              title: _("Speed");
+              subtitle: _("Percentage, does not change the GNOME default animations");
+              adjustment: Adjustment {
+                lower: 50;
+                upper: 200;
+                step-increment: 10;
+                page-increment: 50;
+              };
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("App Grid");
+
+            Adw.SpinRow app_icon_size_row {
+              title: _("Icon Size");
+              adjustment: Adjustment {
+                lower: 32;
+                upper: 96;
+                step-increment: 8;
+                page-increment: 16;
+              };
+            }
+
+            Adw.SpinRow folder_width_row {
+              title: _("Maximum Folder Width");
+              subtitle: _("Percentage of the screen");
+              adjustment: Adjustment {
+                lower: 40;
+                upper: 95;
+                step-increment: 5;
+                page-increment: 10;
+              };
+            }
+          }
+
+          Adw.PreferencesGroup {
+            Adw.ButtonRow {
+              title: _("Reset to Defaults");
+              activated => $reset_activated_cb(template);
+            }
+          }
+        };
+      }
+    };
+  };
+}

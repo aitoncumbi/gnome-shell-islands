@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Same id and path as the schema of the global-menu@unmade.space extension,
+     whose preferences window edits these settings -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.global-menu" path="/org/gnome/shell/extensions/global-menu/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Show the menu bar of the focused application in the top bar</summary>
+    </key>
+    <key name="enable-fallback-menu" type="b">
+      <default>true</default>
+      <summary>Show a generic menu for applications without any other menu</summary>
+    </key>
+    <key name="shortcut-menus-enabled" type="b">
+      <default>true</default>
+      <summary>Show bundled shortcut menus for applications that export no menu</summary>
+    </key>
+    <key name="scan-menus" type="b">
+      <default>true</default>
+      <summary>Scan applications for menus that they do not export</summary>
+      <description>Looks for menus on the session bus, the accessibility bus and, for Electron applications, in their code. Nothing of the application is executed.</description>
+    </key>
+    <key name="shortcut-disabled-apps" type="as">
+      <default>[]</default>
+      <summary>Applications that should not get a shortcut menu</summary>
+    </key>
+    <key name="shortcuts-revision" type="i">
+      <default>0</default>
+      <summary>Changed to make the shell read the user's own shortcut menus again</summary>
+    </key>
+    <key name="hide-app-name" type="b">
+      <default>false</default>
+      <summary>Hide the application name at the start of the menu bar</summary>
+    </key>
+    <key name="shortcut-labels" type="s">
+      <choices>
+        <choice value="always"/>
+        <choice value="hold"/>
+        <choice value="never"/>
+      </choices>
+      <default>'always'</default>
+      <summary>Whether menu items show their keyboard shortcut</summary>
+    </key>
+  </schema>
+</schemalist>

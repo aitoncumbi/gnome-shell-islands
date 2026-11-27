@@ -50,6 +50,10 @@ float shell_blur_effect_get_brightness (ShellBlurEffect *self);
 void shell_blur_effect_set_brightness (ShellBlurEffect *self,
                                        float            brightness);
 
+float shell_blur_effect_get_corner_radius (ShellBlurEffect *self);
+void shell_blur_effect_set_corner_radius (ShellBlurEffect *self,
+                                          float            corner_radius);
+
 ShellBlurMode shell_blur_effect_get_mode (ShellBlurEffect *self);
 void shell_blur_effect_set_mode (ShellBlurEffect *self,
                                  ShellBlurMode    mode);

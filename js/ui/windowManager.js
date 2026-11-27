@@ -14,6 +14,7 @@ import * as Dialog from './dialog.js';
 import * as WorkspaceSwitcherPopup from './workspaceSwitcherPopup.js';
 import * as InhibitShortcutsDialog from './inhibitShortcutsDialog.js';
 import * as ModalDialog from './modalDialog.js';
+import * as WindowEffects from './windowEffects.js';
 import * as WindowMenu from './windowMenu.js';
 import * as PadOsd from './padOsd.js';
 import * as CloseDialog from './closeDialog.js';
@@ -516,6 +517,7 @@ export class WindowManager {
 
         this._shellwm.connect('kill-window-effects', (shellwm, actor) => {
             this._minimizeWindowDone(shellwm, actor);
+            this._unminimizeWindowDone(shellwm, actor);
             this._mapWindowDone(shellwm, actor);
             this._destroyWindowDone(shellwm, actor);
             this._sizeChangeWindowDone(shellwm, actor);
@@ -1164,9 +1166,21 @@ export class WindowManager {
             return;
         }
 
+        const effect = WindowEffects.getEffect('minimize-effect', actor);
+        if (effect === 'none') {
+            shellwm.completed_minimize(actor);
+            return;
+        }
+
         actor.set_scale(1.0, 1.0);
 
         this._minimizing.add(actor);
+
+        if (effect !== 'default') {
+            WindowEffects.minimize(actor, effect,
+                () => this._minimizeWindowDone(shellwm, actor));
+            return;
+        }
 
         const {reducedMotion} = St.Settings.get();
         const useMotion = reducedMotion !== St.ReducedMotion.REDUCE;
@@ -1216,9 +1230,7 @@ export class WindowManager {
     _minimizeWindowDone(shellwm, actor) {
         if (this._minimizing.delete(actor)) {
             actor.remove_all_transitions();
-            actor.set_scale(1.0, 1.0);
-            actor.set_opacity(255);
-            actor.set_pivot_point(0, 0);
+            WindowEffects.reset(actor);
 
             shellwm.completed_minimize(actor);
         }
@@ -1235,7 +1247,20 @@ export class WindowManager {
             return;
         }
 
+        const effect = WindowEffects.getEffect('minimize-effect', actor);
+        if (effect === 'none') {
+            actor.show();
+            shellwm.completed_unminimize(actor);
+            return;
+        }
+
         this._unminimizing.add(actor);
+
+        if (effect !== 'default') {
+            WindowEffects.unminimize(actor, effect,
+                () => this._unminimizeWindowDone(shellwm, actor));
+            return;
+        }
 
         const {reducedMotion} = St.Settings.get();
         const useMotion = reducedMotion !== St.ReducedMotion.REDUCE;
@@ -1288,9 +1313,7 @@ export class WindowManager {
     _unminimizeWindowDone(shellwm, actor) {
         if (this._unminimizing.delete(actor)) {
             actor.remove_all_transitions();
-            actor.set_scale(1.0, 1.0);
-            actor.set_opacity(255);
-            actor.set_pivot_point(0, 0);
+            WindowEffects.reset(actor);
 
             shellwm.completed_unminimize(actor);
         }
@@ -1506,6 +1529,29 @@ export class WindowManager {
             return;
         }
 
+        const effect = WindowEffects.getEffect('open-effect', actor);
+        if (effect === 'none') {
+            shellwm.completed_map(actor);
+            return;
+        }
+
+        if (effect !== 'default') {
+            const dialog =
+                this._getAnimationWindowType(actor) !== Meta.WindowType.NORMAL;
+
+            WindowEffects.prepareOpen(actor, effect);
+            actor.show();
+            this._mapping.add(actor);
+
+            await this._waitForOverviewToHide();
+            // it may have been closed or minimized in the meantime
+            if (this._mapping.has(actor)) {
+                WindowEffects.open(actor, dialog,
+                    () => this._mapWindowDone(shellwm, actor));
+            }
+            return;
+        }
+
         const {reducedMotion} = St.Settings.get();
         const useMotion = reducedMotion !== St.ReducedMotion.REDUCE;
 
@@ -1558,12 +1604,7 @@ export class WindowManager {
     _mapWindowDone(shellwm, actor) {
         if (this._mapping.delete(actor)) {
             actor.remove_all_transitions();
-            actor.opacity = 255;
-            actor.set_pivot_point(0, 0);
-            actor.scale_y = 1;
-            actor.scale_x = 1;
-            actor.translation_y = 0;
-            actor.translation_x = 0;
+            WindowEffects.reset(actor);
             shellwm.completed_map(actor);
         }
     }
@@ -1582,6 +1623,30 @@ export class WindowManager {
         ];
         if (!this._shouldAnimateActor(actor, types)) {
             shellwm.completed_destroy(actor);
+            return;
+        }
+
+        const effect = WindowEffects.getEffect('close-effect', actor);
+        if (effect === 'none') {
+            shellwm.completed_destroy(actor);
+            return;
+        }
+
+        if (effect !== 'default') {
+            const dialog =
+                this._getAnimationWindowType(actor) !== Meta.WindowType.NORMAL;
+
+            this._destroying.add(actor);
+
+            if (dialog && window.is_attached_dialog()) {
+                window.get_transient_for().connectObject('unmanaged', () => {
+                    actor.remove_all_transitions();
+                    this._destroyWindowDone(shellwm, actor);
+                }, actor);
+            }
+
+            WindowEffects.close(actor, effect, dialog,
+                () => this._destroyWindowDone(shellwm, actor));
             return;
         }
 

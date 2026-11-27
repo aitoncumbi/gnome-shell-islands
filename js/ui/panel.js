@@ -1,7 +1,6 @@
 import Atk from 'gi://Atk';
 import Clutter from 'gi://Clutter';
-import GdkPixbuf from 'gi://GdkPixbuf';
-import Gio from 'gi://Gio';
+import Cogl from 'gi://Cogl';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
@@ -16,7 +15,9 @@ import * as PopupMenu from './popupMenu.js';
 import * as PanelMenu from './panelMenu.js';
 import {QuickSettingsMenu, SystemIndicator} from './quickSettings.js';
 import * as Main from './main.js';
-import {NotchIsland, accentFromPixbuf, getClocksTimerPresets, formatDuration, TIMER_ENABLED} from './notch.js';
+import {GlobalMenuBar} from './globalMenu/menuBar.js';
+import {NotchIsland, getClocksTimerPresets, formatDuration, TIMER_ENABLED} from './notch.js';
+import * as TopBarSettings from '../misc/topBarSettings.js';
 import * as Util from '../misc/util.js';
 
 import * as RemoteAccessStatus from './status/remoteAccess.js';
@@ -438,6 +439,7 @@ class QuickSettings extends PanelMenu.Button {
 
 const PANEL_ITEM_IMPLEMENTATIONS = {
     'activities': ActivitiesButton,
+    'globalMenu': GlobalMenuBar,
     'quickSettings': QuickSettings,
     'dateMenu': DateMenuButton,
     'notifications': NotificationsButton,
@@ -455,6 +457,7 @@ const BUMP_WIDTH = 52;
 const BUMP_HEIGHT = 20;
 const BUMP_RIGHT_OFFSET = 100;
 const STATUS_SLIDE_DISTANCE = 80;
+const BACKGROUND_FADE_TIME = 250;
 
 export class Panel extends St.Widget {
     static {
@@ -510,7 +513,7 @@ export class Panel extends St.Widget {
             can_focus: true,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        this._statusToggle.connect('clicked', () => this.setStatusHidden(true));
+        this._statusToggle.connect('clicked', () => this._onHideClicked(true));
         this._rightBox.add_child(this._statusToggle);
 
         // Timers: a menu of the timers saved in GNOME Clocks
@@ -548,7 +551,7 @@ export class Panel extends St.Widget {
             opacity: 0,
             reactive: false,
         });
-        this._bump.connect('clicked', () => this.setStatusHidden(false));
+        this._bump.connect('clicked', () => this._onHideClicked(false));
         this.add_child(this._bump);
 
         this._clickGesture = new Clutter.ClickGesture({
@@ -559,12 +562,17 @@ export class Panel extends St.Widget {
         this.add_action_full(
             'window-drag', Clutter.EventPhase.TARGET, this._clickGesture);
 
-        Main.overview.connectObject('showing',
-            () => this.add_style_pseudo_class('overview'),
-            this);
-        Main.overview.connectObject('hiding',
-            () => this.remove_style_pseudo_class('overview'),
-            this);
+        this._inOverview = Main.overview.visible;
+        Main.overview.connectObject('showing', () => {
+            this.add_style_pseudo_class('overview');
+            this._inOverview = true;
+            this._syncBackground();
+        }, this);
+        Main.overview.connectObject('hiding', () => {
+            this.remove_style_pseudo_class('overview');
+            this._inOverview = false;
+            this._syncBackground();
+        }, this);
 
         Main.layoutManager.panelBox.add_child(this);
         Main.ctrlAltTabManager.addGroup(this,
@@ -583,91 +591,78 @@ export class Panel extends St.Widget {
         // The center island: a notch that expands on hover
         this._notch = new NotchIsland(this);
 
-        this._initBarTint();
+        this._initSettings();
     }
 
-    // Frosted-glass wash behind the bar in the wallpaper's accent color (the
-    // same dominant-hue picker the music pill uses), over a blurred backdrop.
-    // Computed once per wallpaper change from a tiny decode, so it costs
-    // nothing per frame (no live blur).
-    _initBarTint() {
-        this._bgSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
-        this._ifaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
-        const refresh = () => this._refreshBarTint();
-        this._bgSettings.connectObject(
-            'changed::picture-uri', refresh,
-            'changed::picture-uri-dark', refresh,
-            'changed::picture-options', refresh, this);
-        this._ifaceSettings.connectObject('changed::color-scheme', refresh, this);
-        // Frosted-glass backdrop. The only thing under the bar is the
-        // wallpaper (windows sit below it, fullscreen hides it), so this
-        // strip is re-blurred rarely and is only ~28px tall.
-        this._blur = new Shell.BlurEffect({
-            name: 'panel-blur',
-            mode: Shell.BlurMode.BACKGROUND,
-            radius: 12,
-            brightness: 0.95,
-        });
-        this.add_effect(this._blur);
-        this._tintCancellable = null;
-        this._tintCss = '';
-        this._baseStyle = '';
-        this.connect('destroy', () => this._tintCancellable?.cancel());
-        refresh();
+    _initSettings() {
+        TopBarSettings.watch(['height'], () => this._syncHeight(), this);
+        St.ThemeContext.get_for_stage(global.stage).connectObject(
+            'notify::scale-factor', () => this._syncHeight(), this);
+        TopBarSettings.watch(['background-opacity'], () => this._syncBackground(), this);
+        TopBarSettings.watch(['show-border'], () => this._syncBorder(), this);
+        TopBarSettings.watch(['show-hide-button'], () => {
+            this._syncHideButton();
+            // the bar must not stay hidden without the button
+            if (!TopBarSettings.get('show-hide-button'))
+                this._onHideClicked(false);
+        }, this);
+
+        // Starting up puts the overview on screen without 'showing' it
+        Main.layoutManager.connectObject('startup-complete', () => {
+            this._inOverview = Main.overview.visible;
+            this._syncBackground();
+        }, this);
+
+        this._syncHeight();
+        this._syncBackground();
+        this._syncBorder();
+        this._restoreHidden();
     }
 
-    _refreshBarTint() {
-        this._tintCancellable?.cancel();
-        const dark = this._ifaceSettings.get_string('color-scheme') === 'prefer-dark';
-        let uri = this._bgSettings.get_string(dark ? 'picture-uri-dark' : 'picture-uri');
-        if (!uri)
-            uri = this._bgSettings.get_string('picture-uri');
-        if (!uri || this._bgSettings.get_string('picture-options') === 'none') {
-            this._tintCss = '';
-            this.setBaseStyle(this._baseStyle);
-            return;
-        }
+    _syncHeight() {
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        this.set_height(TopBarSettings.get('height') * scale);
+    }
 
-        const cancellable = this._tintCancellable = new Gio.Cancellable();
-        const file = Gio.File.new_for_uri(uri);
-        file.read_async(GLib.PRIORITY_LOW, cancellable, (f, res) => {
-            let stream;
-            try {
-                stream = f.read_finish(res);
-            } catch (e) {
-                return;
-            }
-            GdkPixbuf.Pixbuf.new_from_stream_at_scale_async(
-                stream, 48, 48, true, cancellable, (_o, res2) => {
-                    try {
-                        const pb = GdkPixbuf.Pixbuf.new_from_stream_finish(res2);
-                        this._applyBarTint(pb);
-                    } catch (e) {
-                        // unreadable wallpaper: leave the bar clear
-                    }
-                    stream.close_async(GLib.PRIORITY_LOW, null, null);
-                });
+    _syncBackground() {
+        // Transparent wherever the bar floats over something else
+        const transparent =
+            this._inOverview || this._statusHidden || !!this._sessionStyle;
+        const opacity = transparent ? 0 : TopBarSettings.get('background-opacity');
+
+        this.ease({
+            background_color: new Cogl.Color({
+                red: 0, green: 0, blue: 0,
+                alpha: Math.round(opacity * 255 / 100),
+            }),
+            duration: BACKGROUND_FADE_TIME,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
     }
 
-    _applyBarTint(pb) {
-        // dominant vivid hue of the whole wallpaper (grays are ignored);
-        // mostly-gray wallpapers fall back to a calm blue-gray
-        const accent = accentFromPixbuf(pb);
-        if (!accent?.bar) {
-            this._tintCss = '';
-        } else {
-            const [r, g, b] = accent.bar;
-            this._tintCss = `background-color: rgba(${r}, ${g}, ${b}, 0.8);`;
-        }
-        this.setBaseStyle(this._baseStyle);
+    _syncBorder() {
+        if (TopBarSettings.get('show-border'))
+            this.remove_style_class_name('no-border');
+        else
+            this.add_style_class_name('no-border');
     }
 
-    // The overview sets the panel's inline style for its transitions; this
-    // keeps the wallpaper tint alongside it
-    setBaseStyle(style) {
-        this._baseStyle = style;
-        this.style = `${style} ${this._statusHidden ? '' : (this._tintCss ?? '')}`;
+    _syncHideButton() {
+        this._statusToggle.visible =
+            !this._sessionStyle && TopBarSettings.get('show-hide-button');
+    }
+
+    _onHideClicked(hidden) {
+        TopBarSettings.setBoolean('hidden', hidden);
+        this.setStatusHidden(hidden);
+    }
+
+    _restoreHidden() {
+        if (!this._sessionStyle &&
+            TopBarSettings.get('remember-hidden') &&
+            TopBarSettings.get('show-hide-button') &&
+            TopBarSettings.get('hidden'))
+            this.setStatusHidden(true);
     }
 
     vfunc_get_preferred_width(_forHeight) {
@@ -784,18 +779,17 @@ export class Panel extends St.Widget {
             return;
         this._statusHidden = hidden;
 
-        // The bar's glass background goes away with the islands
-        this._blur?.set_enabled(!hidden);
+        this._syncBackground();
         if (hidden)
             this.add_style_class_name('status-hidden');
         else
             this.remove_style_class_name('status-hidden');
-        this.setBaseStyle(this._baseStyle ?? '');
 
         if (hidden) {
             this.closeQuickSettings();
             this.closeCalendar();
             this._timerMenu.close();
+            this.statusArea.globalMenu?.closeMenus();
         }
 
         // Hide the whole bar: both islands slide off the top of the screen
@@ -932,10 +926,13 @@ export class Panel extends St.Widget {
 
         this._rightBox.set_child_above_sibling(this._statusToggle, null);
         this._rightBox.set_child_below_sibling(this._timerButton, this._statusToggle);
-        this._statusToggle.visible = !this._sessionStyle;
+        this._syncHideButton();
         this._timerButton.visible = TIMER_ENABLED && !this._sessionStyle;
         if (this._sessionStyle)
             this.setStatusHidden(false);
+        else if (this._notch)
+            this._restoreHidden();
+        this._syncBackground();
     }
 
     _hideIndicators() {
@@ -955,7 +952,13 @@ export class Panel extends St.Widget {
                 // This icon is not implemented (this is a bug)
                 return null;
             }
-            indicator = new constructor(this);
+            try {
+                indicator = new constructor(this);
+            } catch (e) {
+                // better a bar without the item than no desktop
+                logError(e, `Failed to create panel item ${role}`);
+                return null;
+            }
             this.statusArea[role] = indicator;
         }
         return indicator;

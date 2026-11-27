@@ -50,10 +50,12 @@
     <file>misc/params.js</file>
     <file>misc/parentalControlsManager.js</file>
     <file>misc/permissionStore.js</file>
+    <file>misc/prefixSettings.js</file>
     <file>misc/signals.js</file>
     <file>misc/signalTracker.js</file>
     <file>misc/systemActions.js</file>
     <file>misc/timeLimitsManager.js</file>
+    <file>misc/topBarSettings.js</file>
     <file>misc/util.js</file>
     <file>misc/weather.js</file>
 
@@ -63,6 +65,7 @@
     <file>ui/appDisplay.js</file>
     <file>ui/appFavorites.js</file>
     <file>ui/appMenu.js</file>
+    <file>ui/appUninstall.js</file>
     <file>ui/audioDeviceSelection.js</file>
     <file>ui/background.js</file>
     <file>ui/backgroundMenu.js</file>
@@ -81,6 +84,19 @@
     <file>ui/extensionDownloader.js</file>
     <file>ui/extensionSystem.js</file>
     <file>ui/focusCaretTracker.js</file>
+    <file>ui/globalMenu/accelerator.js</file>
+    <file>ui/globalMenu/accessibilityMenu.js</file>
+    <file>ui/globalMenu/appActions.js</file>
+    <file>ui/globalMenu/dbusMenuSource.js</file>
+    <file>ui/globalMenu/fallbackMenu.js</file>
+    <file>ui/globalMenu/gtkMenuSource.js</file>
+    <file>ui/globalMenu/keySynth.js</file>
+    <file>ui/globalMenu/labels.js</file>
+    <file>ui/globalMenu/mappings.js</file>
+    <file>ui/globalMenu/menuBar.js</file>
+    <file>ui/globalMenu/scanner.js</file>
+    <file>ui/globalMenu/settings.js</file>
+    <file>ui/globalMenu/windowActions.js</file>
     <file>ui/grabHelper.js</file>
     <file>ui/ibusCandidatePopup.js</file>
     <file>ui/iconGrid.js</file>
@@ -133,6 +149,7 @@
     <file>ui/userWidget.js</file>
     <file>ui/welcomeDialog.js</file>
     <file>ui/windowAttentionHandler.js</file>
+    <file>ui/windowEffects.js</file>
     <file>ui/windowManager.js</file>
     <file>ui/windowMenu.js</file>
     <file>ui/windowPreview.js</file>

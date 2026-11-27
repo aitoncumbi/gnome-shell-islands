@@ -93,6 +93,21 @@ foreach resource : data_resources
   )
 endforeach
 
+# The menu mappings are packed by a script that also checks and indexes them
+data_resources_targets += custom_target('gnome-shell-global-menu',
+  output: 'gnome-shell-global-menu.gresource',
+  depfile: 'gnome-shell-global-menu.gresource.d',
+  command: [
+    generate_global_menu,
+    meson.current_source_dir() / 'global-menu',
+    find_program('glib-compile-resources'),
+    '@OUTPUT@',
+    '@DEPFILE@',
+  ],
+  install: true,
+  install_dir: pkgdatadir,
+)
+
 cursor_theme_resource = gnome.compile_resources(
   'gnome-shell-cursor-theme',
   'gnome-shell-cursor-theme.gresource.xml',
@@ -132,7 +147,12 @@ schema = configure_file(
   configuration: schemaconf,
   install_dir: schemadir
 )
-install_data('00_org.gnome.shell.gschema.override', install_dir: schemadir)
+install_data(
+  '00_org.gnome.shell.gschema.override',
+  'org.gnome.shell.extensions.global-menu.gschema.xml',
+  'org.gnome.shell.top-bar.gschema.xml',
+  install_dir: schemadir,
+)
 
 if have_systemd
   unitconf = configuration_data()

@@ -11,6 +11,7 @@ import St from 'gi://St';
 import * as Main from './main.js';
 import * as PanelMenu from './panelMenu.js';
 import * as Calendar from './calendar.js';
+import * as TopBarSettings from '../misc/topBarSettings.js';
 import * as Weather from '../misc/weather.js';
 
 import {formatDateWithCFormatString, formatTime, clearCachedLocalTimeZone} from '../misc/dateUtils.js';
@@ -1019,6 +1020,8 @@ class NotificationsButton extends PanelMenu.Button {
         this._messageList._messageView.connectObject(
             'notify::empty', this._sessionUpdated.bind(this), this);
 
+        TopBarSettings.watch(['bell-always-visible'],
+            () => this._sessionUpdated(), this);
         Main.sessionMode.connectObject('updated', this._sessionUpdated.bind(this), this);
         this._sessionUpdated();
     }
@@ -1032,10 +1035,12 @@ class NotificationsButton extends PanelMenu.Button {
 
     _sessionUpdated() {
         const hasList = Main.sessionMode.hasNotifications && !Main.sessionMode.isGreeter;
-        const empty = this._messageList._messageView.empty;
+        const visible = hasList &&
+            (!this._messageList._messageView.empty ||
+             TopBarSettings.get('bell-always-visible'));
         // close the popup before the bell disappears under it
-        if (empty && this.menu.isOpen)
+        if (!visible && this.menu.isOpen)
             this.menu.close();
-        this.visible = hasList && !empty;
+        this.visible = visible;
     }
 });

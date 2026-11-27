@@ -24,6 +24,7 @@ import * as SystemActions from '../misc/systemActions.js';
 
 import * as Main from './main.js';
 
+import * as TopBarSettings from '../misc/topBarSettings.js';
 import * as Config from '../misc/config.js';
 
 const POPDOWN_DIALOG_TIMEOUT = 500;
@@ -665,6 +666,11 @@ var BaseAppView = GObject.registerClass({
         this._items = new Map();
         this._orderedItems = [];
 
+        TopBarSettings.watch(['app-icon-size'], () => {
+            this._grid.layout_manager.setFixedIconSize(
+                TopBarSettings.get('app-icon-size'));
+        }, this);
+
         // Filter the apps through the user’s parental controls.
         this._parentalControlsManager = ParentalControlsManager.getDefault();
         this._parentalControlsManager.connectObject('app-filter-changed',
@@ -701,7 +707,7 @@ var BaseAppView = GObject.registerClass({
     _createGrid() {
         const grid = new AppGrid({
             allow_incomplete_pages: true,
-            fixed_icon_size: APP_GRID_ICON_SIZE,
+            fixed_icon_size: TopBarSettings.get('app-icon-size'),
         });
         grid.autoFit = true;
         // lets the stylesheet spread the cells over the whole page
@@ -1354,11 +1360,14 @@ const PageManager = GObject.registerClass({
     }
 });
 
-// Launchpad style grid: many small icons per page
-const APP_GRID_ICON_SIZE = 56;
-// Smallest a cell may get: the grid fits as many columns / rows as this allows
+// Launchpad style grid: many small icons per page. Smallest a cell may get: the grid fits as many columns / rows as this allows
 const APP_GRID_CELL_MIN_WIDTH = 140;
 const APP_GRID_ROW_GAP = 10;
+
+// Folders use the same cells, in a dialog that is as big as its apps need
+const FOLDER_MIN_COLUMNS = 3;
+const FOLDER_SINGLE_ROW_MAX = 5;
+const FOLDER_MAX_HEIGHT_RATIO = 0.65;
 
 export class AppDisplay extends BaseAppView {
     static {
@@ -2169,18 +2178,84 @@ class FolderGrid extends AppGrid {
     _init() {
         super._init({
             allow_incomplete_pages: false,
-            columns_per_page: 3,
-            rows_per_page: 3,
+            fixed_icon_size: TopBarSettings.get('app-icon-size'),
             page_halign: Clutter.ActorAlign.CENTER,
-            page_valign: Clutter.ActorAlign.CENTER,
+            page_valign: Clutter.ActorAlign.START,
         });
+        this.add_style_class_name('folder-grid');
+    }
 
-        this.setGridModes([
-            {
-                rows: 3,
-                columns: 3,
-            },
-        ]);
+    // The folder grows to fit its grid (see fitItems()), not the other way
+    // around, so the allocated size has no say in the number of cells
+    _findBestModeForSize() {
+    }
+
+    /**
+     * Picks the number of columns and rows for a number of icons: a wide block
+     * that is just big enough. Only a folder that would get bigger than that
+     * is split into pages.
+     *
+     * @param {number} nItems number of icons in the folder
+     * @param {number} maxColumns most columns there is room for
+     * @param {number} maxRows most rows there is room for
+     * @returns {boolean} whether the grid changed
+     */
+    fitItems(nItems, maxColumns = Infinity, maxRows = Infinity) {
+        const {rowsPerPage, columnsPerPage} = this.layout_manager;
+
+        let columns = nItems <= FOLDER_SINGLE_ROW_MAX
+            ? Math.max(nItems, 1)
+            : Math.max(Math.ceil(Math.sqrt(nItems * 2)), 4);
+        if (columns > maxColumns || Math.ceil(nItems / columns) > maxRows)
+            columns = maxColumns;
+        const rows = Math.clamp(Math.ceil(nItems / columns), 1, maxRows);
+
+        if (rows === rowsPerPage && columns === columnsPerPage)
+            return false;
+
+        this.layout_manager.rows_per_page = rows;
+        this.layout_manager.columns_per_page = columns;
+        return true;
+    }
+
+    // Number of columns and rows that fit a page of the given size
+    getMaxCells(width, height) {
+        const {childSize, columnSpacing, rowSpacing} = this.layout_manager;
+        const padding = this._getPagePadding();
+        const fit = (size, spacing) => Math.max(
+            Math.floor((size + spacing) / (childSize + spacing)), 1);
+
+        return [
+            fit(width * (1 - PAGE_PREVIEW_RATIO) - padding.left - padding.right,
+                columnSpacing),
+            fit(height - padding.top - padding.bottom, rowSpacing),
+        ];
+    }
+
+    // The padding from the stylesheet, without the room for the page previews
+    _getPagePadding() {
+        const node = this.get_theme_node();
+        const [top, right, bottom, left] = ['top', 'right', 'bottom', 'left'].map(
+            side => node.get_length(`page-padding-${side}`));
+        return {top, right, bottom, left};
+    }
+
+    // Size of a page that fits the current number of columns and rows exactly
+    getPageSize() {
+        const {
+            childSize, columnSpacing, rowSpacing, rowsPerPage, columnsPerPage,
+        } = this.layout_manager;
+        const padding = this._getPagePadding();
+        const columns = Math.max(columnsPerPage, FOLDER_MIN_COLUMNS);
+
+        const width = columns * (childSize + columnSpacing) - columnSpacing +
+            padding.left + padding.right;
+        const height = rowsPerPage * (childSize + rowSpacing) - rowSpacing +
+            padding.top + padding.bottom;
+
+        // BaseAppViewGridLayout takes the room for the page previews off the
+        // page width
+        return [Math.ceil(width / (1 - PAGE_PREVIEW_RATIO)), Math.ceil(height)];
     }
 });
 
@@ -2210,6 +2285,41 @@ class FolderView extends BaseAppView {
 
     _createGrid() {
         return new FolderGrid();
+    }
+
+    vfunc_get_preferred_width(_forHeight) {
+        return [0, this._grid.getPageSize()[0]];
+    }
+
+    vfunc_get_preferred_height(_forWidth) {
+        let [, height] = this._grid.getPageSize();
+        if (this._pageIndicators.visible)
+            height += this._pageIndicators.get_preferred_height(-1)[1];
+        return [0, height];
+    }
+
+    _updateGridSize() {
+        const monitor = Main.layoutManager.primaryMonitor;
+
+        // The size of the icons is only known once they are styled, which
+        // they are not before the folder is opened
+        const maxCells = this.mapped && monitor && this._items.size > 0
+            ? this._grid.getMaxCells(
+                monitor.width * TopBarSettings.get('folder-width') / 100,
+                monitor.height * FOLDER_MAX_HEIGHT_RATIO)
+            : [];
+
+        const changed = this._grid.fitItems(this._apps.length, ...maxCells);
+        if (changed)
+            this.queue_relayout();
+
+        return changed;
+    }
+
+    // To be called when the folder was opened
+    fitToMonitor() {
+        if (this._updateGridSize())
+            this._redisplay();
     }
 
     _getItemPosition(item) {
@@ -2307,6 +2417,8 @@ class FolderView extends BaseAppView {
 
             items.push(icon);
         });
+
+        this._updateGridSize();
 
         return items;
     }
@@ -2983,6 +3095,7 @@ export const AppFolderDialog = GObject.registerClass({
 
         this._needsZoomAndFade = true;
         this.show();
+        this._view.fitToMonitor();
 
         this.emit('open-state-changed', true);
     }
@@ -3125,6 +3238,7 @@ export const AppIcon = GObject.registerClass({
             this._menu = new AppMenu(this, this._popupMenuSide, {
                 favoritesSection: true,
                 showSingleWindows: true,
+                uninstallItem: true,
             });
             this._menu.setApp(this.app);
             this._menu.connect('open-state-changed', (menu, isPoppedUp) => {

@@ -1,7 +1,6 @@
 /* App Grid */
 
 $app_icon_size: 96px;
-$app_folder_size: 720px;
 
 // app icons
 .icon-grid {
@@ -71,10 +70,8 @@ $folder_gray: st-mix($system_fg_color, $system_base_color, $background_mix_facto
 
 // Expanded app folder dialog
 .app-folder-dialog {
-  width: $app_folder_size;
-  height: $app_folder_size;
-
-  border-radius: $modal_radius * 4;
+  // no fixed size: it is as big as its grid (see FolderGrid)
+  border-radius: $modal_radius * 2;
   // the usual overlay gray, partly transparent
   background-color: transparentize($system_overlay_bg_color, 0.2);
   color: $system_fg_color;
@@ -205,4 +202,10 @@ $page_indicator_size: 8px;
   // from each other; any leftover is split above and below
   max-row-spacing: 100px;
   max-column-spacing: 1000px;
+}
+
+// Grid inside of a folder: the cells of the main grid at their smallest size
+.icon-grid.folder-grid {
+  column-spacing: $base_padding * 6;
+  row-spacing: $base_padding * 3;
 }

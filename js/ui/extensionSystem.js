@@ -16,6 +16,10 @@ import * as FileUtils from '../misc/fileUtils.js';
 import * as Main from './main.js';
 import * as MessageTray from './messageTray.js';
 
+// Extensions that are part of the shell here (see js/ui/globalMenu). They are
+// listed, so that their preferences can be opened, but never run
+const BUILTIN_EXTENSIONS = ['global-menu@unmade.space'];
+
 const ENABLED_EXTENSIONS_KEY = 'enabled-extensions';
 const DISABLED_EXTENSIONS_KEY = 'disabled-extensions';
 const DISABLE_USER_EXTENSIONS_KEY = 'disable-user-extensions';
@@ -555,7 +559,8 @@ export class ExtensionManager extends Signals.EventEmitter {
 
         // filter out 'disabled-extensions' which takes precedence
         const disabledExtensions = global.settings.get_strv(DISABLED_EXTENSIONS_KEY);
-        return extensions.filter(item => !disabledExtensions.includes(item));
+        return extensions.filter(item => !disabledExtensions.includes(item) &&
+            !BUILTIN_EXTENSIONS.includes(item));
     }
 
     async _onUserExtensionsEnabledChanged() {

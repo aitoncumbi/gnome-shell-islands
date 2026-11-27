@@ -385,7 +385,7 @@ export class Overview extends Signals.EventEmitter {
             this._shown = false;
             this._visibleTarget = false;
             this._changeShownState(OverviewShownState.HIDING);
-            Main.panel.setBaseStyle(`transition-duration: ${duration}ms;`);
+            Main.panel.style = `transition-duration: ${duration}ms;`;
             onComplete = () => this._hideDone();
         } else {
             onComplete = () => this._showDone();
@@ -591,7 +591,7 @@ export class Overview extends Signals.EventEmitter {
             this._changeShownState(OverviewShownState.HIDDEN);
         }
 
-        Main.panel.setBaseStyle('');
+        Main.panel.style = null;
 
         this._syncGrab();
     }
@@ -616,7 +616,7 @@ export class Overview extends Signals.EventEmitter {
     }
 
     async runStartupAnimation() {
-        Main.panel.setBaseStyle('transition-duration: 0ms;');
+        Main.panel.style = 'transition-duration: 0ms;';
 
         this._shown = true;
         this._visible = true;
@@ -639,7 +639,7 @@ export class Overview extends Signals.EventEmitter {
             return;
         }
 
-        Main.panel.setBaseStyle('');
+        Main.panel.style = null;
         this._changeShownState(OverviewShownState.SHOWN);
     }
 

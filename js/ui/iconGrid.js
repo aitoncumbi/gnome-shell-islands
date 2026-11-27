@@ -1123,6 +1123,23 @@ export const IconGridLayout = GObject.registerClass({
         return this._iconSize;
     }
 
+    setFixedIconSize(size) {
+        this.fixedIconSize = size;
+        if (this._iconSize === size)
+            return;
+
+        this._iconSize = size;
+        for (const item of this._items.keys())
+            item.icon.setIconSize(size);
+
+        this.notify('icon-size');
+        this._container?.queue_relayout();
+    }
+
+    get childSize() {
+        return this._getChildrenMaxSize();
+    }
+
     get nPages() {
         return this._pages.length;
     }

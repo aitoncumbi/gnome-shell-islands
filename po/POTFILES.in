@@ -31,6 +31,7 @@ js/ui/accessDialog.js
 js/ui/appDisplay.js
 js/ui/appFavorites.js
 js/ui/appMenu.js
+js/ui/appUninstall.js
 js/ui/audioDeviceSelection.js
 js/ui/backgroundMenu.js
 js/ui/calendar.js
@@ -46,6 +47,9 @@ js/ui/dateMenu.js
 js/ui/endSessionDialog.js
 js/ui/extensionDownloader.js
 js/ui/extensionSystem.js
+js/ui/globalMenu/fallbackMenu.js
+js/ui/globalMenu/menuBar.js
+js/ui/globalMenu/windowActions.js
 js/ui/inhibitShortcutsDialog.js
 js/ui/kbdA11yDialog.js
 js/ui/keyboard.js

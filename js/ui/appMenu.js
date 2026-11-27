@@ -6,6 +6,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as AppFavorites from './appFavorites.js';
+import * as AppUninstall from './appUninstall.js';
 import * as Main from './main.js';
 import * as ParentalControlsManager from '../misc/parentalControlsManager.js';
 import * as PopupMenu from './popupMenu.js';
@@ -17,6 +18,7 @@ export class AppMenu extends PopupMenu.PopupMenu {
      * @param {object} params - options
      * @param {bool} params.favoritesSection - show items to add/remove favorite
      * @param {bool} params.showSingleWindow - show window section for a single window
+     * @param {bool} params.uninstallItem - show an item to uninstall the app
      */
     constructor(sourceActor, side = St.Side.TOP, params = {}) {
         if (Clutter.get_default_text_direction() === Clutter.TextDirection.RTL) {
@@ -33,6 +35,7 @@ export class AppMenu extends PopupMenu.PopupMenu {
         const {
             favoritesSection = false,
             showSingleWindows = false,
+            uninstallItem = false,
         } = params;
 
         this._app = null;
@@ -41,6 +44,7 @@ export class AppMenu extends PopupMenu.PopupMenu {
         this._appFavorites = AppFavorites.getAppFavorites();
         this._enableFavorites = favoritesSection;
         this._showSingleWindows = showSingleWindows;
+        this._enableUninstall = uninstallItem;
 
         this._windowsChangedId = 0;
         this._updateWindowsLaterId = 0;
@@ -94,6 +98,9 @@ export class AppMenu extends PopupMenu.PopupMenu {
             Main.overview.hide();
         });
 
+        this._uninstallItem = this.addAction(_('Uninstall…'),
+            () => AppUninstall.uninstall(this._app));
+
         this.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         this._quitItem =
@@ -122,6 +129,13 @@ export class AppMenu extends PopupMenu.PopupMenu {
         this._updateFavoriteItem();
         this._updateGpuItem();
         this._updateDetailsVisibility();
+        this._updateUninstallItem();
+
+        // Hide the item while a removal of this app is running.
+        this.connect('open-state-changed', (menu, open) => {
+            if (open)
+                this._updateUninstallItem();
+        });
     }
 
     _onAppStateChanged(sys, app) {
@@ -182,6 +196,11 @@ export class AppMenu extends PopupMenu.PopupMenu {
     _updateDetailsVisibility() {
         const sw = this._appSystem.lookup_app('org.gnome.Software.desktop');
         this._detailsItem.visible = sw !== null;
+    }
+
+    _updateUninstallItem() {
+        this._uninstallItem.visible =
+            this._enableUninstall && AppUninstall.canUninstall(this._app);
     }
 
     _animateLaunch() {
@@ -245,6 +264,7 @@ export class AppMenu extends PopupMenu.PopupMenu {
         this._updateNewWindowItem();
         this._updateFavoriteItem();
         this._updateGpuItem();
+        this._updateUninstallItem();
     }
 
     _queueUpdateWindowsSection() {

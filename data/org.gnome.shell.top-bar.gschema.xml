@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Settings of this fork, edited by the Top Bar panel of its Settings app -->
+<schemalist>
+  <schema id="org.gnome.shell.top-bar" path="/org/gnome/shell/top-bar/">
+    <key name="height" type="i">
+      <range min="24" max="48"/>
+      <default>28</default>
+      <summary>Height of the top bar</summary>
+    </key>
+    <key name="background-opacity" type="i">
+      <range min="0" max="100"/>
+      <default>0</default>
+      <summary>Opacity of the dark bar background, in percent</summary>
+    </key>
+    <key name="show-border" type="b">
+      <default>true</default>
+      <summary>Show a faint line below the top bar</summary>
+    </key>
+    <key name="show-hide-button" type="b">
+      <default>true</default>
+      <summary>Show the button that hides the top bar</summary>
+    </key>
+    <key name="remember-hidden" type="b">
+      <default>false</default>
+      <summary>Keep the bar hidden across logins and the lock screen</summary>
+    </key>
+    <key name="hidden" type="b">
+      <default>false</default>
+      <summary>Whether the bar was last hidden by the user</summary>
+    </key>
+    <key name="activity-pill" type="b">
+      <default>true</default>
+      <summary>Show the activity pill</summary>
+    </key>
+    <key name="activity-music" type="b">
+      <default>true</default>
+      <summary>Show playing music in the activity pill</summary>
+    </key>
+    <key name="activity-copies" type="b">
+      <default>true</default>
+      <summary>Show file copies in the activity pill</summary>
+    </key>
+    <key name="activity-downloads" type="b">
+      <default>true</default>
+      <summary>Show downloads in the activity pill</summary>
+    </key>
+    <key name="activity-blur" type="i">
+      <range min="2" max="40"/>
+      <default>18</default>
+      <summary>Blur of the wallpaper behind the activity pill</summary>
+    </key>
+    <key name="activity-tint" type="i">
+      <range min="0" max="90"/>
+      <default>16</default>
+      <summary>Darkness of the activity pill, in percent</summary>
+    </key>
+    <key name="bell-always-visible" type="b">
+      <default>false</default>
+      <summary>Show the notifications bell even without notifications</summary>
+    </key>
+    <key name="raise-windows" type="b">
+      <default>true</default>
+      <summary>Raise windows that ask for attention instead of notifying</summary>
+    </key>
+    <key name="app-icon-size" type="i">
+      <range min="32" max="96"/>
+      <default>56</default>
+      <summary>Size of the icons in the app grid and its folders</summary>
+    </key>
+    <key name="folder-width" type="i">
+      <range min="40" max="95"/>
+      <default>85</default>
+      <summary>Widest an app folder may get, in percent of the screen</summary>
+    </key>
+    <key name="minimize-effect" type="s">
+      <choices>
+        <choice value="default"/>
+        <choice value="magic-lamp"/>
+        <choice value="scale"/>
+        <choice value="zoom"/>
+        <choice value="glide"/>
+        <choice value="slide"/>
+        <choice value="fade"/>
+        <choice value="none"/>
+      </choices>
+      <default>'magic-lamp'</default>
+      <summary>Animation of minimizing and restoring windows</summary>
+    </key>
+    <key name="open-effect" type="s">
+      <choices>
+        <choice value="default"/>
+        <choice value="zoom"/>
+        <choice value="glide"/>
+        <choice value="slide"/>
+        <choice value="fade"/>
+        <choice value="none"/>
+      </choices>
+      <default>'zoom'</default>
+      <summary>Animation of opening windows</summary>
+    </key>
+    <key name="close-effect" type="s">
+      <choices>
+        <choice value="default"/>
+        <choice value="magic-lamp"/>
+        <choice value="zoom"/>
+        <choice value="glide"/>
+        <choice value="slide"/>
+        <choice value="fade"/>
+        <choice value="none"/>
+      </choices>
+      <default>'zoom'</default>
+      <summary>Animation of closing windows</summary>
+    </key>
+    <key name="animation-speed" type="i">
+      <range min="50" max="200"/>
+      <default>100</default>
+      <summary>Speed of the window animations, in percent</summary>
+    </key>
+  </schema>
+</schemalist>

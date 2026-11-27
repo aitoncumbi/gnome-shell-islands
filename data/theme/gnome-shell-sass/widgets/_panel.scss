@@ -21,7 +21,7 @@ $island_dark: #0c0c0d; // solid dark for glyphs on the light play button
 $island_fg_color: $light_1;
 
 #panel {
-  // transparent by default; panel.js tints it from the wallpaper. The status area has no island background of its own
+  // no color of its own, only the blur from panel.js; the status area has no island background either
   background-color: transparent;
   font-weight: bold;
   height: $panel_height;
@@ -179,8 +179,8 @@ $island_fg_color: $light_1;
   }
 }
 
-#panel.status-hidden {
-  background-color: transparent;
+#panel.status-hidden,
+#panel.no-border {
   border-bottom-width: 0;
 }
 
@@ -210,9 +210,13 @@ $activity_accent: #5aa9ff;
 $activity_muted: #b4b9c2;
 
 #panelNotchBg {
-  background-color: $island_bg_color;
+  // the glass is painted by notch.js: blurred wallpaper plus this tint, whose
+  // color and rounding follow the pill as it expands
+  background-color: transparent;
   color: $island_fg_color;
   font-weight: normal;
+
+  .notch-tint { border: 1px solid rgba(255, 255, 255, 0.16); }
 
   .notch-activity { padding: 0 14px; spacing: 10px; }
 
@@ -309,4 +313,29 @@ $activity_muted: #b4b9c2;
 #panel .panel-button.quick-settings-button {
   -natural-hpadding: $base_padding * 1.25;
   -minimum-hpadding: $base_padding * 0.5;
+}
+
+// Global menu: the menu bar of the focused application
+#panel .panel-button.global-menu-title {
+  -natural-hpadding: 8px;
+  -minimum-hpadding: 6px;
+  font-size: 10pt;
+  font-weight: normal;
+
+  &.app-name { font-weight: bold; }
+}
+
+// its menus drop straight down from the bar, without an arrow gap
+.popup-menu-boxpointer.global-menu-popup {
+  -arrow-rise: 2px; // the gap below the islands
+  min-width: 12em;
+  font-size: 10pt;
+
+  .popup-menu-content { border-radius: 12px; }
+}
+
+.global-menu-accel {
+  font-feature-settings: "tnum";
+  &:ltr { margin-left: 24px; }
+  &:rtl { margin-right: 24px; }
 }

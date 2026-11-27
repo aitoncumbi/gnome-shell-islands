@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=Top Bar
+Comment=Change the top bar, window animations and app grid
+Exec=gnome-control-center top-bar
+# Translators: Do NOT translate or transliterate this text (this is an icon file name)!
+Icon=org.gnome.Settings-top-bar-symbolic
+Terminal=false
+Type=Application
+NoDisplay=true
+StartupNotify=true
+Categories=GNOME;GTK;Settings;DesktopSettings;X-GNOME-Settings-Panel;X-GNOME-PersonalizationSettings;
+OnlyShowIn=GNOME;
+# Translators: Search terms to find the Top Bar panel. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
+Keywords=Panel;Menu Bar;Global Menu;Activity;Pill;Music;Notifications;Bell;App Grid;Folders;Icons;Window;Animations;Minimize;Magic Lamp;Genie;Effects;

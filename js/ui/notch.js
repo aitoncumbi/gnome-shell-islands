@@ -4,9 +4,12 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Graphene from 'gi://Graphene';
 import GObject from 'gi://GObject';
+import Shell from 'gi://Shell';
 import Soup from 'gi://Soup';
 import St from 'gi://St';
 
+import * as TopBarSettings from '../misc/topBarSettings.js';
+import * as Background from './background.js';
 import * as Main from './main.js';
 import * as Mpris from './mpris.js';
 
@@ -39,6 +42,11 @@ const NOTCH_DBUS_XML = `
   </interface>
 </node>`;
 const EXPANDED_RADIUS = 24;
+// The glass background: the wallpaper, blurred, beneath a black tint that gets
+// denser as the pill expands, so the details stay readable on any wallpaper
+const GLASS_BRIGHTNESS = 0.75;
+const GLASS_TINT_EXPANDED = 0.55;
+const FILL_ALPHA = 0.6; // the song's progress lets the glass through
 const ART_SIZE = 22;
 const RING_SIZE = 22;
 const OPEN_DELAY = 120;
@@ -410,7 +418,7 @@ function accentFromFile(path) {
     }
 }
 
-export function accentFromPixbuf(pixbuf) {
+function accentFromPixbuf(pixbuf) {
     try {
         const pixels = pixbuf.get_pixels();
         const channels = pixbuf.get_n_channels();
@@ -445,7 +453,6 @@ export function accentFromPixbuf(pixbuf) {
         return {
             fill: withLuminance(h, s, FILL_LUMINANCE),
             tint: withLuminance(h, Math.min(0.9, s + 0.1), TINT_LUMINANCE),
-            bar: withLuminance(h, Math.min(0.9, s + 0.1), 0.2),
         };
     } catch (e) {
         log(`Notch: could not read the album art colors: ${e.message}`);
@@ -631,7 +638,7 @@ class FillArea extends St.DrawingArea {
         cr.clip();
 
         // the elapsed part
-        cr.setSourceRGB(red / 255, green / 255, blue / 255);
+        cr.setSourceRGBA(red / 255, green / 255, blue / 255, FILL_ALPHA);
         cr.rectangle(0, 0, w * this._fraction, h);
         cr.fill();
         cr.$dispose();
@@ -674,6 +681,8 @@ class NotchIsland extends St.Widget {
         this._fromW = this._toW = SIZES.music[0];
         this._fromH = this._toH = SIZES.music[1];
         this._hidden = false;
+        this._showMusic = this._showCopies = this._showDownloads = true;
+        this._glassBlur = this._glassTint = 0;
         this._eqRunning = false;
         this._eqTimer = 0;
         this._pollId = 0;
@@ -716,6 +725,10 @@ class NotchIsland extends St.Widget {
             'notify::allocation', () => this._applyGeometry(), this);
         panel.connectObject('notify::hover', () => this._onPanelHover(), this);
         Main.sessionMode.connectObject('updated', () => this._applyGeometry(), this);
+        Main.layoutManager.connectObject('monitors-changed', () => {
+            if (this._bgManager)
+                this._createWallpaper();
+        }, this);
 
         this._mpris = new Mpris.MprisSource();
         this._mpris.connectObject(
@@ -723,15 +736,87 @@ class NotchIsland extends St.Widget {
             'player-removed', () => this._pickPlayer(),
             this);
         this._pickPlayer();
-        this._startCopyWatcher();
         this._watchLauncherEntries();
         this._exportDBus();
+        this._syncGlass();
+        this._syncActivities();
+        TopBarSettings.watch(['activity-blur', 'activity-tint'],
+            () => this._syncGlass(), this);
+        TopBarSettings.watch(
+            ['activity-pill', 'activity-music', 'activity-copies', 'activity-downloads'],
+            () => this._syncActivities(), this);
+    }
+
+    // ---- settings ------------------------------------------------------
+
+    _syncGlass() {
+        this._glassBlur = TopBarSettings.get('activity-blur');
+        this._glassTint = TopBarSettings.get('activity-tint') / 100;
         this._applyGeometry();
+    }
+
+    _syncActivities() {
+        const pill = TopBarSettings.get('activity-pill');
+        this._showMusic = pill && TopBarSettings.get('activity-music');
+        this._showCopies = pill && TopBarSettings.get('activity-copies');
+        this._showDownloads = pill && TopBarSettings.get('activity-downloads');
+
+        // Nothing to watch the disk for while neither is shown
+        if (this._showCopies || this._showDownloads)
+            this._startCopyWatcher();
+        else
+            this._stopCopyWatcher();
+
+        this._updateActivity();
     }
 
     // ---- UI ------------------------------------------------------------
 
+    // Glass: our own copy of the wallpaper actor, lined up with the real one
+    // and blurred. The blur is cached, so unlike a live backdrop blur it is
+    // only redone while the pill moves or the wallpaper changes, and partial
+    // redraws of the pill can't leak its own content into it.
+    _buildGlass() {
+        this._blur = new Shell.BlurEffect({
+            name: 'notch-blur',
+            brightness: GLASS_BRIGHTNESS,
+        });
+        this._glass = new St.Widget({
+            clip_to_allocation: true,
+            effect: this._blur,
+        });
+        this._wallpaper = new St.Widget();
+        this._glass.add_child(this._wallpaper);
+        this.add_child(this._glass);
+
+        this._tint = new St.Widget({
+            style_class: 'notch-tint',
+            x_expand: true,
+            y_expand: true,
+        });
+        this.add_child(this._tint);
+    }
+
+    // Created with the first activity, and again when the monitors change
+    _createWallpaper() {
+        this._bgManager?.destroy();
+        this._bgManager = null;
+
+        const monitorIndex = Main.layoutManager.primaryIndex;
+        if (monitorIndex < 0)
+            return;
+
+        this._bgManager = new Background.BackgroundManager({
+            container: this._wallpaper,
+            monitorIndex,
+            controlPosition: false,
+        });
+        this._applyGeometry();
+    }
+
     _buildUi() {
+        this._buildGlass();
+
         // Elapsed-time fill (music): the accent color, painted beneath the
         // content, clipped to the pill's rounded shape
         this._fill = new FillArea();
@@ -886,9 +971,9 @@ class NotchIsland extends St.Widget {
     _updateActivity() {
         // A running file copy takes priority over music
         // A file copy comes first, then a download, then a timer, then music
-        const next = this._copy
+        const next = this._copy && this._showCopies
             ? 'copy'
-            : this._download
+            : this._download && this._showDownloads
                 ? 'download'
                 : this._timer
                     ? 'timer'
@@ -908,6 +993,8 @@ class NotchIsland extends St.Widget {
         this._activity = next;
 
         if (next) {
+            if (!this._bgManager)
+                this._createWallpaper();
             this._musicRow.visible = next === 'music';
             this._copyRow.visible = next === 'copy' || next === 'download';
             this._timerRow.visible = next === 'timer';
@@ -1429,6 +1516,9 @@ class NotchIsland extends St.Widget {
     // ---- file copy watcher ------------------------------------------------
 
     _startCopyWatcher() {
+        if (this._copyProc)
+            return;
+
         try {
             this._copyProc = Gio.Subprocess.new(
                 ['python3', '-u', '-c', COPY_WATCHER],
@@ -1444,12 +1534,24 @@ class NotchIsland extends St.Widget {
         this._readCopyLine();
     }
 
+    _stopCopyWatcher() {
+        this._copyProc?.force_exit();
+        this._copyProc = null;
+        this._copyStream = null;
+        this._copy = null;
+        this._copySamples = [];
+        this._fileDownload = null;
+        this._downloadSamples = [];
+        this._refreshDownload();
+    }
+
     _readCopyLine() {
         this._copyStream.read_line_async(
             GLib.PRIORITY_DEFAULT, this._cancellable, (stream, res) => {
                 try {
                     const [line] = stream.read_line_finish_utf8(res);
-                    if (line === null)
+                    // ended, or stopped in the meantime
+                    if (line === null || stream !== this._copyStream)
                         return;
                     this._onCopyLine(line);
                 } catch (e) {
@@ -1531,6 +1633,9 @@ class NotchIsland extends St.Widget {
     }
 
     _musicShown() {
+        if (!this._showMusic)
+            return false;
+
         const status = this._player?.status;
         return status === 'Playing' || (status === 'Paused' && this._pausedGrace);
     }
@@ -1693,15 +1798,31 @@ class NotchIsland extends St.Widget {
         this.set_position(x, ry);
         // Never smaller than the bar: the details box is pushed down by the
         // bar height and would get a negative size (and break drawing)
-        this.set_size(Math.max(w, pillH), Math.max(h, pillH));
+        const pillW = Math.max(w, pillH);
+        const fullH = Math.max(h, pillH);
+        this.set_size(pillW, fullH);
 
         const radius = Math.round(lerp(pillH / 2, EXPANDED_RADIUS * scale, t));
-        this.style = `border-radius: ${radius}px;`;
-
-        // the fill is clipped to the same rounding as the pill
-        this._fill.setRadius(radius);
         this.opacity = offScreen ? 0 : Math.round(255 * a * (1 - slide));
         this.translation_y = -slide * Math.round(SLIDE_DISTANCE * scale);
+
+        // the glass, the tint and the fill share the pill's rounding
+        this._blur.set({
+            radius: this._glassBlur * scale,
+            corner_radius: radius,
+        });
+        const tint = lerp(this._glassTint,
+            Math.max(this._glassTint, GLASS_TINT_EXPANDED), t).toFixed(3);
+        this._tint.style = `border-radius: ${radius / scale}px; ` +
+            `background-color: rgba(0, 0, 0, ${tint});`;
+        this._fill.setRadius(radius);
+
+        // keep the wallpaper copy lined up with the real one
+        this._glass.set_size(pillW, fullH);
+        this._wallpaper.set({
+            translation_x: monitor.x - x,
+            translation_y: monitor.y - (ry + this.translation_y),
+        });
 
         this._top.set_height(pillH);
         this._musicRow.set_height(pillH);
@@ -1719,6 +1840,8 @@ class NotchIsland extends St.Widget {
                 Gio.DBus.session.signal_unsubscribe(id);
         }
         this._dbusImpl?.unexport();
+        this._bgManager?.destroy();
+        this._bgManager = null;
         this._clearPauseGrace();
         this._stopTimerTick();
         this._cancellable.cancel();

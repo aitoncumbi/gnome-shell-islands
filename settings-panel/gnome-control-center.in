@@ -1,0 +1,21 @@
+#!/bin/sh
+# Starts the Settings app that has the Top Bar panel. Falls back to the stock
+# one when ours is missing, broken or of another version than the stock one,
+# or when ~/.config/gs-notch-settings-disable exists.
+OURS="@PREFIX@/bin/gnome-control-center"
+STOCK=/usr/bin/gnome-control-center
+STAMP="${XDG_CACHE_HOME:-$HOME/.cache}/gs-notch/settings-checked"
+
+usable() {
+    [ ! -e "$HOME/.config/gs-notch-settings-disable" ] && [ -x "$OURS" ] || return 1
+    # Checked once for each pair of binaries, since it takes a moment
+    key=$(stat -L -c '%Y %s' "$OURS" "$STOCK" 2>/dev/null | tr '\n' ' ') || return 1
+    [ "$(cat "$STAMP" 2>/dev/null)" = "$key" ] && return 0
+    ours=$("$OURS" --version 2>/dev/null) || return 1
+    [ -n "$ours" ] && [ "$ours" = "$("$STOCK" --version 2>/dev/null)" ] || return 1
+    mkdir -p "$(dirname "$STAMP")" && printf '%s' "$key" > "$STAMP"
+    return 0
+}
+
+usable && exec "$OURS" "$@"
+exec "$STOCK" "$@"

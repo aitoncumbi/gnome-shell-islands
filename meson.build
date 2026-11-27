@@ -165,6 +165,7 @@ mutter_pkglibdir = mutter_dep.get_variable('pkglibdir')
 python = find_program('python3')
 gjs = find_program('gjs')
 generate_app_list = find_program('build-aux/generate-app-list.py')
+generate_global_menu = find_program('build-aux/generate-global-menu.py')
 
 cc = meson.get_compiler('c')
 

@@ -1,6 +1,7 @@
 import GObject from 'gi://GObject';
 import Shell from 'gi://Shell';
 
+import * as TopBarSettings from '../misc/topBarSettings.js';
 import * as Main from './main.js';
 import * as MessageTray from './messageTray.js';
 
@@ -11,6 +12,7 @@ const TYPING_GRACE_MS = 1200;
 
 export class WindowAttentionHandler {
     constructor() {
+        this._tracker = Shell.WindowTracker.get_default();
         this._idleMonitor = global.backend.get_core_idle_monitor();
         global.display.connectObject(
             'window-demands-attention', this._onWindowDemandsAttention.bind(this),
@@ -39,7 +41,7 @@ export class WindowAttentionHandler {
         // Keys typed into apps never reach the shell, so ask mutter how long
         // the user has been idle (any input counts, keyboard or pointer)
         const active = this._idleMonitor.get_idletime() < TYPING_GRACE_MS;
-        if (!active) {
+        if (!active && TopBarSettings.get('raise-windows')) {
             Main.activateWindow(window);
             return;
         }
