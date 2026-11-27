@@ -113,6 +113,13 @@ Touched files: `js/ui/{notch,panel,sessionMode,layout,overview,overviewControls,
   `~/.local/share/applications/gnome-top-bar-panel.desktop`, or create
   `~/.config/gs-notch-settings-disable`.
 
+## Screenshots and thanks
+
+Screenshots are in [README.md](README.md) and `docs/screenshots/` (taken in a
+headless session with stock GNOME apps and the Adwaita wallpaper). The global
+menu is a port of [Orbit Global Menu](https://github.com/Unmade760/orbit-global-menu)
+by Unmade760; thank you for the extension and its menu collection.
+
 ## Build and install (per-user, no root)
 
 ```bash

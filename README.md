@@ -1,3 +1,40 @@
+# GNOME Shell Islands
+
+A fork of GNOME Shell 51 with a floating top bar, a live activity pill, the
+menus of the focused app in the bar, a Launchpad-style app grid and window
+animations such as the Magic Lamp, all configurable from a Top Bar page in
+Settings. What changed and how to install it: [FORK.md](FORK.md).
+
+```bash
+./install.sh --with-settings
+```
+
+![The desktop: global menu, activity pill and status island](docs/screenshots/desktop.jpg)
+
+| | |
+|---|---|
+| ![Music in the activity pill](docs/screenshots/pill-music.png) | ![A file copy in the activity pill](docs/screenshots/pill-copy.png) |
+| ![Magic Lamp minimizing a window](docs/screenshots/magic-lamp.jpg) | ![The app grid](docs/screenshots/app-grid.jpg) |
+| ![A folder sized to its apps](docs/screenshots/folder.jpg) | ![The Top Bar page in Settings](docs/screenshots/settings.png) |
+
+## Thanks
+
+- [Orbit Global Menu](https://github.com/Unmade760/orbit-global-menu) by
+  Unmade760: the global menu is a native port of this extension (version
+  1.1.4, GPL-3.0-or-later), including its 293 shortcut menus. Its preferences
+  window still edits the menu settings here.
+- [Dash to Dock](https://github.com/micheleg/dash-to-dock) is not part of this
+  shell, but tells it where app icons are, which is where Magic Lamp and
+  Scale to Icon send windows.
+- [GNOME Shell](https://gitlab.gnome.org/GNOME/gnome-shell) and
+  [GNOME Settings](https://gitlab.gnome.org/GNOME/gnome-control-center), which
+  all of this is built on, and the `gnome-shell-performance` package whose
+  sources this fork started from.
+
+The rest of this file is the README of GNOME Shell.
+
+---
+
 # GNOME Shell
 
 GNOME Shell provides core user interface functions for the GNOME desktop,
